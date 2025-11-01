@@ -1,0 +1,9 @@
+Function Name,File,Class Name,Start Line,End Line
+parse,example.py,CodeAnalyzer,17,21
+visit_Import,example.py,CodeAnalyzer,23,26
+visit_ImportFrom,example.py,CodeAnalyzer,28,31
+visit_ClassDef,example.py,CodeAnalyzer,33,50
+visit_FunctionDef,example.py,CodeAnalyzer,52,62
+attach_parents,example.py,,65,69
+generate_markdown,example.py,DocumentationBuilder,78,112
+export,example.py,DocumentationBuilder,114,129

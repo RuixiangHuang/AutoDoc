@@ -1,0 +1,23 @@
+Variable Name,File,Class Name,Function Name,Line Number
+file_path,example.py,CodeAnalyzer,__init__,11
+tree,example.py,CodeAnalyzer,__init__,12
+imports,example.py,CodeAnalyzer,__init__,13
+classes,example.py,CodeAnalyzer,__init__,14
+functions,example.py,CodeAnalyzer,__init__,15
+source,example.py,CodeAnalyzer,parse,19
+tree,example.py,CodeAnalyzer,parse,20
+class_info,example.py,CodeAnalyzer,visit_ClassDef,34
+method_info,example.py,CodeAnalyzer,visit_ClassDef,42
+func_info,example.py,CodeAnalyzer,visit_FunctionDef,55
+analyzer,example.py,DocumentationBuilder,__init__,76
+lines,example.py,DocumentationBuilder,generate_markdown,79
+md_text,example.py,DocumentationBuilder,export,115
+md_file,example.py,DocumentationBuilder,export,116
+html_file,example.py,DocumentationBuilder,export,117
+html,example.py,DocumentationBuilder,export,124
+path,example.py,,,133
+analyzer,example.py,,,138
+source,example.py,,,140
+tree,example.py,,,141
+doc,example.py,,,146
+name,ss.py,Person,__init__,6
