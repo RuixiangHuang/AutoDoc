@@ -1,6 +1,7 @@
 import ast
 import os
 import csv
+from database import init_database, clear_database, save_classes, save_functions, save_variables
 
 OUTPUT_DIR = "data_clean"
 os.makedirs(OUTPUT_DIR, exist_ok=True)  # Create folder if it doesn't exist
@@ -92,12 +93,23 @@ def save_to_csv(data, columns, filename):
         writer = csv.writer(f)
         writer.writerow(columns)
         writer.writerows(data)
-    print(f"Saved {len(data)} entries to {filepath}")
+    print(f"✅ Saved {len(data)} entries to {filepath}")
 
 if __name__ == "__main__":
-    code_dir = "code"  # change to your target directory
+    init_database()
+    clear_database()
+    
+    code_dir = "code"
     classes, functions, variables = scan_directory(code_dir)
 
-    save_to_csv(classes, ["Class Name", "File", "Start Line", "End Line"], "classes.csv")
-    save_to_csv(functions, ["Function Name", "File", "Class Name", "Start Line", "End Line"], "functions.csv")
-    save_to_csv(variables, ["Variable Name", "File", "Class Name", "Function Name", "Line Number"], "variables.csv")
+    save_classes(classes)
+    save_functions(functions)
+    save_variables(variables)
+    
+    export_csv = input("\nExport to CSV files as well? (y/n, default n): ").strip().lower() == 'y'
+    if export_csv:
+        save_to_csv(classes, ["Class Name", "File", "Start Line", "End Line"], "classes.csv")
+        save_to_csv(functions, ["Function Name", "File", "Class Name", "Start Line", "End Line"], "functions.csv")
+        save_to_csv(variables, ["Variable Name", "File", "Class Name", "Function Name", "Line Number"], "variables.csv")
+    
+    print("\n✅ Code analysis completed! Data saved to SQLite database.")
