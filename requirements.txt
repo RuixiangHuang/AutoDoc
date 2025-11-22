@@ -1,0 +1,13 @@
+# Core dependencies
+langchain>=0.1.0
+langchain-community>=0.0.20
+chromadb>=0.4.0
+ollama>=0.1.0
+
+# PDF generation
+weasyprint>=60.0
+markdown>=3.5.0
+
+# Existing dependencies
+# (keep any existing ones)
+

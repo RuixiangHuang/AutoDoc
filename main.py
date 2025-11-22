@@ -7,8 +7,11 @@ OUTPUT_DIR = "data_clean"
 os.makedirs(OUTPUT_DIR, exist_ok=True)  # Create folder if it doesn't exist
 
 class CodeAnalyzer(ast.NodeVisitor):
-    def __init__(self, file_name):
+    def __init__(self, file_name, file_path=None, source_code=None):
         self.file_name = file_name
+        self.file_path = file_path
+        self.source_code = source_code  # 完整的源代码
+        self.source_lines = source_code.split('\n') if source_code else []
         self.current_class = None
         self.current_function = None
         self.classes = []
@@ -19,7 +22,10 @@ class CodeAnalyzer(ast.NodeVisitor):
     def visit_ClassDef(self, node):
         start = node.lineno
         end = max([n.lineno for n in ast.walk(node) if hasattr(n, "lineno")], default=start)
-        self.classes.append((node.name, self.file_name, start, end))
+        # 提取源代码片段
+        code_snippet = self._extract_code_snippet(start, end)
+        docstring = ast.get_docstring(node)
+        self.classes.append((node.name, self.file_name, start, end, code_snippet, docstring))
         prev_class = self.current_class
         self.current_class = node.name
         self.generic_visit(node)
@@ -30,12 +36,17 @@ class CodeAnalyzer(ast.NodeVisitor):
         if node.name != "__init__":
             start = node.lineno
             end = max([n.lineno for n in ast.walk(node) if hasattr(n, "lineno")], default=start)
+            # 提取源代码片段
+            code_snippet = self._extract_code_snippet(start, end)
+            docstring = ast.get_docstring(node)
             self.functions.append((
                 node.name,
                 self.file_name,
                 self.current_class if self.current_class else "",
                 start,
-                end
+                end,
+                code_snippet,
+                docstring
             ))
         prev_function = self.current_function
         self.current_function = node.name
@@ -64,12 +75,21 @@ class CodeAnalyzer(ast.NodeVisitor):
                     node.lineno
                 ))
         self.generic_visit(node)
+    
+    def _extract_code_snippet(self, start_line: int, end_line: int) -> str:
+        """根据行号范围提取源代码片段"""
+        if not self.source_lines:
+            return ""
+        # AST 行号从 1 开始，列表索引从 0 开始
+        start_idx = max(0, start_line - 1)
+        end_idx = min(len(self.source_lines), end_line)
+        return '\n'.join(self.source_lines[start_idx:end_idx])
 
 def extract_code_elements(file_path):
     with open(file_path, "r", encoding="utf-8") as f:
         source = f.read()
     tree = ast.parse(source)
-    analyzer = CodeAnalyzer(os.path.basename(file_path))
+    analyzer = CodeAnalyzer(os.path.basename(file_path), file_path=file_path, source_code=source)
     analyzer.visit(tree)
     return analyzer.classes, analyzer.functions, analyzer.variables
 
@@ -102,14 +122,18 @@ if __name__ == "__main__":
     code_dir = "code"
     classes, functions, variables = scan_directory(code_dir)
 
-    save_classes(classes)
-    save_functions(functions)
+    # 只保存前4个元素到数据库（保持兼容性）
+    classes_for_db = [(c[0], c[1], c[2], c[3]) for c in classes]
+    functions_for_db = [(f[0], f[1], f[2], f[3], f[4]) for f in functions]
+    
+    save_classes(classes_for_db)
+    save_functions(functions_for_db)
     save_variables(variables)
     
     export_csv = input("\nExport to CSV files as well? (y/n, default n): ").strip().lower() == 'y'
     if export_csv:
-        save_to_csv(classes, ["Class Name", "File", "Start Line", "End Line"], "classes.csv")
-        save_to_csv(functions, ["Function Name", "File", "Class Name", "Start Line", "End Line"], "functions.csv")
+        save_to_csv(classes_for_db, ["Class Name", "File", "Start Line", "End Line"], "classes.csv")
+        save_to_csv(functions_for_db, ["Function Name", "File", "Class Name", "Start Line", "End Line"], "functions.csv")
         save_to_csv(variables, ["Variable Name", "File", "Class Name", "Function Name", "Line Number"], "variables.csv")
     
     print("\n✅ Code analysis completed! Data saved to SQLite database.")
