@@ -70,20 +70,20 @@ class VectorStore:
         metadatas = [elem["metadata"] for elem in code_elements]
         ids = [str(uuid.uuid4()) for _ in code_elements]
         
-        # ChromaDB 批量大小限制（安全值设为 5000）
+        # ChromaDB batch size limit (safe value set to 5000)
         total = len(texts)
-        chroma_batch_size = 5000  # 小于 ChromaDB 的最大批量大小 5461
+        chroma_batch_size = 5000  # Less than ChromaDB's maximum batch size 5461
         
-        print(f"    正在生成嵌入向量并存储（共 {total} 个元素，分 {(total + chroma_batch_size - 1) // chroma_batch_size} 批）...")
+        print(f"    Generating embeddings and storing ({total} elements, {(total + chroma_batch_size - 1) // chroma_batch_size} batches)...")
         
-        # 分批处理以避免超过 ChromaDB 批量限制
+        # Process in batches to avoid exceeding ChromaDB batch limit
         processed = 0
         for i in range(0, total, chroma_batch_size):
             batch_texts = texts[i:i+chroma_batch_size]
             batch_metadatas = metadatas[i:i+chroma_batch_size]
             batch_ids = ids[i:i+chroma_batch_size]
             
-            # 生成嵌入向量并存储
+            # Generate embeddings and store
             self.vectorstore.add_texts(
                 texts=batch_texts,
                 metadatas=batch_metadatas,
@@ -91,9 +91,9 @@ class VectorStore:
             )
             
             processed = min(i + chroma_batch_size, total)
-            print(f"    已处理: {processed}/{total} ({processed*100//total}%)")
+            print(f"    Processed: {processed}/{total} ({processed*100//total}%)")
         
-        print(f"    ✅ 已添加 {total} 个代码元素到向量数据库")
+        print(f"    ✅ Added {total} code elements to vector database")
     
     def search_similar(self, query: str, top_k: int = 5, filter_dict: Optional[Dict] = None) -> List[Dict]:
         """

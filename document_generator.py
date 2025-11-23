@@ -23,12 +23,12 @@ except (ImportError, OSError, Exception) as e:
 class DocumentGenerator:
     """生成 Markdown 和 PDF 文档"""
     
-    def __init__(self, language: str = "zh"):
+    def __init__(self, language: str = "en"):
         """
-        初始化文档生成器
+        Initialize document generator
         
         Args:
-            language: 语言选择，"zh" 为中文，"en" 为英文
+            language: Language selection, "zh" for Chinese, "en" for English
         """
         self.language = language
         
@@ -106,7 +106,7 @@ class DocumentGenerator:
         # 组织类
         classes_list = code_data.get("classes", [])
         if not classes_list:
-            print("  ⚠️  警告: code_data 中没有类数据")
+            print("  ⚠️  Warning: No class data in code_data")
         for cls in classes_list:
             if not cls:
                 continue
@@ -118,7 +118,7 @@ class DocumentGenerator:
         # 组织函数
         functions_list = code_data.get("functions", [])
         if not functions_list:
-            print("  ⚠️  警告: code_data 中没有函数数据")
+            print("  ⚠️  Warning: No function data in code_data")
         for func in functions_list:
             if not func:
                 continue
