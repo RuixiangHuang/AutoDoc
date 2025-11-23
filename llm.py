@@ -48,7 +48,7 @@ Please provide a clear answer with relevant code locations."""
     
     try:
         messages = [{"role": "user", "content": prompt}]
-        response = ollama.chat(model="llama3:latest", messages=messages)
+        response = ollama.chat(model="gemma3:12b", messages=messages)
         return response['message']['content']
     except Exception as e:
         return f"❌ LLM call failed: {str(e)}"

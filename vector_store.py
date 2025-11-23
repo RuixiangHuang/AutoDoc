@@ -2,7 +2,7 @@ import os
 import chromadb
 from chromadb.config import Settings
 from langchain_community.vectorstores import Chroma
-from langchain_community.embeddings import OllamaEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from typing import List, Dict, Tuple, Optional
 import uuid
 
@@ -16,8 +16,14 @@ class VectorStore:
         self.persist_directory = persist_directory
         os.makedirs(persist_directory, exist_ok=True)
         
-        # 使用 Ollama 的嵌入模型
-        self.embeddings = OllamaEmbeddings(model="llama3:latest")
+        # 使用 HuggingFace 的嵌入模型（sentence-transformers）
+        # 这个模型不需要特定的 Ollama 模型支持嵌入功能
+        # 首次使用时会自动下载模型
+        print("    正在加载嵌入模型...")
+        self.embeddings = HuggingFaceEmbeddings(
+            model_name="sentence-transformers/all-MiniLM-L6-v2"
+        )
+        print("    ✅ 嵌入模型加载完成")
         
         # 初始化 Chroma 客户端
         self.client = chromadb.PersistentClient(
@@ -64,13 +70,30 @@ class VectorStore:
         metadatas = [elem["metadata"] for elem in code_elements]
         ids = [str(uuid.uuid4()) for _ in code_elements]
         
-        self.vectorstore.add_texts(
-            texts=texts,
-            metadatas=metadatas,
-            ids=ids
-        )
+        # ChromaDB 批量大小限制（安全值设为 5000）
+        total = len(texts)
+        chroma_batch_size = 5000  # 小于 ChromaDB 的最大批量大小 5461
         
-        print(f"✅ Added {len(code_elements)} code elements to vector database")
+        print(f"    正在生成嵌入向量并存储（共 {total} 个元素，分 {(total + chroma_batch_size - 1) // chroma_batch_size} 批）...")
+        
+        # 分批处理以避免超过 ChromaDB 批量限制
+        processed = 0
+        for i in range(0, total, chroma_batch_size):
+            batch_texts = texts[i:i+chroma_batch_size]
+            batch_metadatas = metadatas[i:i+chroma_batch_size]
+            batch_ids = ids[i:i+chroma_batch_size]
+            
+            # 生成嵌入向量并存储
+            self.vectorstore.add_texts(
+                texts=batch_texts,
+                metadatas=batch_metadatas,
+                ids=batch_ids
+            )
+            
+            processed = min(i + chroma_batch_size, total)
+            print(f"    已处理: {processed}/{total} ({processed*100//total}%)")
+        
+        print(f"    ✅ 已添加 {total} 个代码元素到向量数据库")
     
     def search_similar(self, query: str, top_k: int = 5, filter_dict: Optional[Dict] = None) -> List[Dict]:
         """
