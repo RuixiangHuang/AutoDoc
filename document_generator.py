@@ -1,8 +1,31 @@
 import os
 from datetime import datetime
 from typing import Dict, List, Optional
-from weasyprint import HTML
 from markdown import markdown
+
+# 设置 WeasyPrint 需要的库路径（macOS Homebrew）
+if os.path.exists("/opt/homebrew/lib"):
+    os.environ.setdefault("DYLD_LIBRARY_PATH", "/opt/homebrew/lib")
+    if "DYLD_LIBRARY_PATH" in os.environ and "/opt/homebrew/lib" not in os.environ["DYLD_LIBRARY_PATH"]:
+        os.environ["DYLD_LIBRARY_PATH"] = f"/opt/homebrew/lib:{os.environ['DYLD_LIBRARY_PATH']}"
+
+# WeasyPrint 延迟导入，避免在模块加载时就失败
+# 捕获 ImportError 和 OSError（系统库缺失时）
+try:
+    from weasyprint import HTML
+    WEASYPRINT_AVAILABLE = True
+except (ImportError, OSError, Exception) as e:
+    WEASYPRINT_AVAILABLE = False
+    HTML = None
+    # 静默失败，在需要时再提示用户
+
+# xhtml2pdf 作为 Windows 上的备选方案（纯 Python，无需系统依赖）
+try:
+    from xhtml2pdf import pisa
+    XHTML2PDF_AVAILABLE = True
+except (ImportError, Exception) as e:
+    XHTML2PDF_AVAILABLE = False
+    pisa = None
 
 
 class DocumentGenerator:
@@ -89,15 +112,25 @@ class DocumentGenerator:
         files_data = {}
         
         # 组织类
-        for cls in code_data.get("classes", []):
-            file_name = cls[1] if isinstance(cls, tuple) else cls.get("file", "unknown")
+        classes_list = code_data.get("classes", [])
+        if not classes_list:
+            print("  ⚠️  警告: code_data 中没有类数据")
+        for cls in classes_list:
+            if not cls:
+                continue
+            file_name = cls[1] if isinstance(cls, tuple) and len(cls) > 1 else (cls.get("file", "unknown") if isinstance(cls, dict) else "unknown")
             if file_name not in files_data:
                 files_data[file_name] = {"classes": [], "functions": [], "variables": []}
             files_data[file_name]["classes"].append(cls)
         
         # 组织函数
-        for func in code_data.get("functions", []):
-            file_name = func[1] if isinstance(func, tuple) else func.get("file", "unknown")
+        functions_list = code_data.get("functions", [])
+        if not functions_list:
+            print("  ⚠️  警告: code_data 中没有函数数据")
+        for func in functions_list:
+            if not func:
+                continue
+            file_name = func[1] if isinstance(func, tuple) and len(func) > 1 else (func.get("file", "unknown") if isinstance(func, dict) else "unknown")
             if file_name not in files_data:
                 files_data[file_name] = {"classes": [], "functions": [], "variables": []}
             files_data[file_name]["functions"].append(func)
@@ -158,6 +191,7 @@ class DocumentGenerator:
                         name, file, class_name, start, end = func[0], func[1], func[2], func[3], func[4]
                         code_snippet = func[5] if len(func) > 5 else ""
                         docstring = func[6] if len(func) > 6 else None
+                        decorators = func[7] if len(func) > 7 else []
                     else:
                         name = func.get("name", "unknown")
                         file = func.get("file", file_name)
@@ -166,6 +200,7 @@ class DocumentGenerator:
                         end = func.get("end_line", 0)
                         code_snippet = func.get("code", "")
                         docstring = func.get("docstring")
+                        decorators = func.get("decorators", [])
                     
                     element_id = f"{file}::function::{name}"
                     explanation = explanations.get(element_id, self.t["no_explanation"])
@@ -175,6 +210,21 @@ class DocumentGenerator:
                         func_title += f" (in class `{class_name}`)"
                     lines.append(f"#### {func_title}\n")
                     lines.append(f"- **{self.t['location']}**: {self.t['line']} {start}-{end}\n")
+                    
+                    # 显示装饰器信息（接口路由等）
+                    if decorators:
+                        decorator_strs = []
+                        for dec in decorators:
+                            if isinstance(dec, dict):
+                                dec_name = dec.get("name", "")
+                                dec_args = dec.get("args", [])
+                                if dec_args:
+                                    dec_str = f"@{dec_name}({', '.join(dec_args)})"
+                                else:
+                                    dec_str = f"@{dec_name}"
+                                decorator_strs.append(dec_str)
+                        if decorator_strs:
+                            lines.append(f"- **接口装饰器**: {', '.join(decorator_strs)}\n")
                     
                     if docstring:
                         lines.append(f"- **{self.t['docstring']}**: {docstring}\n")
@@ -212,6 +262,17 @@ class DocumentGenerator:
             markdown_text: Markdown 文本
             output_path: PDF 输出路径
         """
+        if not WEASYPRINT_AVAILABLE:
+            error_msg = (
+                "❌ WeasyPrint is not available. Cannot generate PDF.\n"
+                "⚠️  To install WeasyPrint dependencies:\n"
+                "   On macOS: brew install cairo pango gdk-pixbuf libffi\n"
+                "   On Ubuntu: sudo apt-get install python3-cffi python3-brotli libpango-1.0-0 libpangoft2-1.0-0\n"
+                "   Then: pip install weasyprint"
+            )
+            print(error_msg)
+            raise ImportError("WeasyPrint is not available")
+        
         try:
             # 将 Markdown 转换为 HTML
             html_content = markdown(
@@ -277,9 +338,14 @@ class DocumentGenerator:
             print(f"✅ PDF saved to {output_path}")
             
         except Exception as e:
-            print(f"❌ Error converting to PDF: {str(e)}")
-            print("⚠️  Make sure WeasyPrint dependencies are installed:")
-            print("   On macOS: brew install cairo pango gdk-pixbuf libffi")
-            print("   On Ubuntu: sudo apt-get install python3-cffi python3-brotli libpango-1.0-0 libpangoft2-1.0-0")
+            error_msg = (
+                f"❌ Error converting to PDF: {str(e)}\n"
+                "⚠️  Make sure WeasyPrint dependencies are installed:\n"
+                "   On macOS: brew install cairo pango gdk-pixbuf libffi\n"
+                "   On Ubuntu: sudo apt-get install python3-cffi python3-brotli libpango-1.0-0 libpangoft2-1.0-0\n"
+                "   Then: pip install weasyprint"
+            )
+            print(error_msg)
+            # 不抛出异常，让程序继续运行，至少 Markdown 已经生成了
             raise
 
