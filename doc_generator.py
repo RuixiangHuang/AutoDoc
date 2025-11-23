@@ -290,6 +290,7 @@ def generate_documentation(
     
     print(f"✅ 分析完成: {len(classes)} 个类, {len(functions)} 个函数, {len(variables)} 个变量")
     
+<<<<<<< HEAD
     # 步骤 3: 获取文件结构（用于后续文档生成）
     print("\n[3/6] 获取文件结构...")
     file_structure = get_file_structure(code_directory)
@@ -400,6 +401,13 @@ def main():
         choices=["zh", "en"],
         default="zh",
         help="文档语言: zh (中文) 或 en (英文) (默认: zh)"
+    )
+    
+    parser.add_argument(
+        "--filter",
+        type=str,
+        default="controller,api,route,endpoint,handler,service",
+        help="文件过滤关键词（逗号分隔），只扫描包含这些关键词的文件（默认: controller,api,route,endpoint,handler,service）"
     )
     
     parser.add_argument(

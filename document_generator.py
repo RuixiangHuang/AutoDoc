@@ -19,14 +19,6 @@ except (ImportError, OSError, Exception) as e:
     HTML = None
     # 静默失败，在需要时再提示用户
 
-# xhtml2pdf 作为 Windows 上的备选方案（纯 Python，无需系统依赖）
-try:
-    from xhtml2pdf import pisa
-    XHTML2PDF_AVAILABLE = True
-except (ImportError, Exception) as e:
-    XHTML2PDF_AVAILABLE = False
-    pisa = None
-
 
 class DocumentGenerator:
     """生成 Markdown 和 PDF 文档"""
