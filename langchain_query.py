@@ -1,5 +1,5 @@
 from langchain_community.llms import Ollama
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 from vector_store import VectorStore
 from typing import Dict, List, Optional
 
@@ -40,7 +40,7 @@ class LangChainQuery:
         self.language = language
         
         # 初始化 Ollama LLM
-        self.llm = Ollama(model="llama3:latest")
+        self.llm = Ollama(model="qwen3-coder:30b")
         
         # 选择提示词模板
         if language == "zh":

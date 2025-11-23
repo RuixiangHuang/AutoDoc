@@ -1,0 +1,117 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# IDE - PyCharm
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# IDE - VSCode
+.vscode/
+*.code-workspace
+
+# IDE - Other
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+
+# Vector database (ChromaDB)
+data_clean/chroma_db/
+data_clean/*.db
+data_clean/*.sqlite3
+
+# Generated documentation
+output/
+*.pdf
+
+# Data files (CSV exports can be regenerated)
+data_clean/*.csv
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+*.cache
+
+# Model files (if downloaded locally)
+models/
+*.bin
+*.safetensors
+*.onnx
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
