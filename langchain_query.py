@@ -26,15 +26,15 @@ Please provide a detailed explanation in English of this code's functionality, p
 
 
 class LangChainQuery:
-    """使用 LangChain + Ollama 进行 RAG 查询，逐个处理函数/类"""
+    """Use LangChain + Ollama for RAG queries, process functions/classes one by one"""
     
-    def __init__(self, vector_store: VectorStore, language: str = "zh"):
+    def __init__(self, vector_store: VectorStore, language: str = "en"):
         """
-        初始化 LangChain 查询器
+        Initialize LangChain query handler
         
         Args:
-            vector_store: VectorStore 实例
-            language: 语言选择，"zh" 为中文，"en" 为英文
+            vector_store: VectorStore instance
+            language: Language selection, "zh" for Chinese, "en" for English
         """
         self.vector_store = vector_store
         self.language = language
@@ -75,42 +75,42 @@ class LangChainQuery:
             LLM 生成的解释文本
         """
         try:
-            # 从向量数据库检索相关代码片段
-            # 使用元素名称和类型作为查询
+            # Retrieve related code snippets from vector database
+            # Use element name and type as query
             query_text = f"{element_type} {element_name} in {file_name}"
             
-            # 排除当前元素本身
+            # Exclude current element itself
             similar_results = self.vector_store.search_similar(
                 query=query_text,
-                top_k=top_k + 1,  # 多取一个，然后过滤掉自己
+                top_k=top_k + 1,  # Get one more, then filter out self
                 filter_dict=None
             )
             
-            # 过滤掉当前元素本身（通过比较代码文本）
+            # Filter out current element itself (by comparing code text)
             context_snippets = []
             for result in similar_results:
-                # 如果代码文本不完全相同，则作为上下文
+                # If code text is not exactly the same, use as context
                 if result["text"].strip() != code_text.strip():
                     context_snippets.append(result["text"])
                     if len(context_snippets) >= top_k:
                         break
             
-            # 构建上下文
+            # Build context
             if context_snippets:
                 context = "\n\n---\n\n".join(context_snippets)
             else:
-                context = "无相关上下文代码。" if self.language == "zh" else "No related context code."
+                context = "No related context code." if self.language == "en" else "无相关上下文代码。"
             
-            # 构建提示词
+            # Build prompt
             prompt = self.prompt.format(context=context, code=code_text)
             
-            # 调用 LLM 生成解释
+            # Call LLM to generate explanation
             response = self.llm.invoke(prompt)
             
             return response.strip()
             
         except Exception as e:
-            error_msg = f"生成解释时出错: {str(e)}" if self.language == "zh" else f"Error generating explanation: {str(e)}"
+            error_msg = f"Error generating explanation: {str(e)}" if self.language == "en" else f"生成解释时出错: {str(e)}"
             return error_msg
     
     def batch_explain(
@@ -119,15 +119,15 @@ class LangChainQuery:
         progress_callback: Optional[callable] = None
     ) -> Dict[str, str]:
         """
-        批量处理代码元素，为每个元素生成解释
+        Batch process code elements, generate explanation for each element
         
         Args:
             code_elements: List of dicts, each containing:
-                - name: 元素名称
-                - type: "function" 或 "class"
-                - file: 文件名
-                - code: 源代码
-            progress_callback: 可选的回调函数，接收 (current, total) 参数
+                - name: Element name
+                - type: "function" or "class"
+                - file: File name
+                - code: Source code
+            progress_callback: Optional callback function, receives (current, total) parameters
         
         Returns:
             Dict mapping element_id -> explanation

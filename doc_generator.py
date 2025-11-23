@@ -67,14 +67,14 @@ def identify_interface_files(file_structure: dict, language: str = "zh") -> list
     """
     llm = Ollama(model="qwen3-coder:30b")
     
-    # 构建目录结构描述
-    structure_text = "目录结构:\n"
-    structure_text += f"目录: {', '.join(file_structure['directories'][:20])}\n"  # 限制显示数量
-    structure_text += "\nPython 文件列表:\n"
-    for file_info in file_structure["files"][:50]:  # 限制显示前50个文件
+    # Build directory structure description
+    structure_text = "Directory structure:\n"
+    structure_text += f"Directories: {', '.join(file_structure['directories'][:20])}\n"  # Limit display count
+    structure_text += "\nPython file list:\n"
+    for file_info in file_structure["files"][:50]:  # Limit to first 50 files
         structure_text += f"  - {file_info['path']} ({file_info['size']} bytes)\n"
     if len(file_structure["files"]) > 50:
-        structure_text += f"  ... 还有 {len(file_structure['files']) - 50} 个文件\n"
+        structure_text += f"  ... {len(file_structure['files']) - 50} more files\n"
     
     # 构建提示词
     if language == "zh":
@@ -119,9 +119,9 @@ Return only the paths, without any explanations or other text. If a file is clea
         return list(set(interface_files))  # 去重
         
     except Exception as e:
-        print(f"  ⚠️  LLM 识别接口文件时出错: {str(e)}")
-        print("  将使用默认关键词过滤（controller, api, route 等）")
-        # 回退到关键词过滤
+        print(f"  ⚠️  Error identifying interface files with LLM: {str(e)}")
+        print("  Will use default keyword filtering (controller, api, route, etc.)")
+        # Fallback to keyword filtering
         keywords = ['controller', 'api', 'route', 'endpoint', 'handler', 'service']
         interface_files = []
         for file_info in file_structure["files"]:
@@ -234,44 +234,44 @@ def prepare_code_elements_for_explanation(classes, functions):
 
 
 def progress_callback(current: int, total: int):
-    """进度回调函数"""
+    """Progress callback function"""
     percentage = (current / total) * 100
-    print(f"处理进度: {current}/{total} ({percentage:.1f}%)")
+    print(f"Progress: {current}/{total} ({percentage:.1f}%)")
 
 
 def generate_documentation(
     code_directory: str,
     output_dir: str = "output",
-    language: str = "zh",
+    language: str = "en",
     file_filter_keywords: str = "controller,api,route,endpoint,handler,service"
 ):
     """
-    生成完整文档的主函数
+    Main function to generate complete documentation
     
     Args:
-        code_directory: 要分析的代码目录
-        output_dir: 输出目录
-        language: 语言选择，"zh" 或 "en"
+        code_directory: Code directory to analyze
+        output_dir: Output directory
+        language: Language selection, "zh" or "en"
     """
     print("=" * 60)
-    print("AutoDoc - 代码文档自动生成系统")
+    print("AutoDoc - Code Documentation Generation System")
     print("=" * 60)
-    print(f"代码目录: {code_directory}")
-    print(f"输出目录: {output_dir}")
-    print(f"语言: {'中文' if language == 'zh' else 'English'}")
+    print(f"Code Directory: {code_directory}")
+    print(f"Output Directory: {output_dir}")
+    print(f"Language: {'Chinese' if language == 'zh' else 'English'}")
     print("=" * 60)
     
-    # 步骤 1: 初始化数据库
-    print("\n[1/6] 初始化数据库...")
+    # Step 1: Initialize database
+    print("\n[1/6] Initializing database...")
     init_database()
     clear_database()
     
-    # 步骤 2: 扫描目录并分析代码
-    print("\n[2/6] 扫描目录并分析代码...")
+    # Step 2: Scan directory and analyze code
+    print("\n[2/6] Scanning directory and analyzing code...")
     
-    # 文件过滤函数：只扫描包含指定关键词的文件
+    # File filter function: only scan files containing specified keywords
     def interface_file_filter(file_path, file_name):
-        """过滤接口相关文件"""
+        """Filter interface-related files"""
         keywords = [k.strip() for k in file_filter_keywords.split(',')]
         file_lower = file_name.lower()
         path_lower = file_path.lower()
@@ -288,34 +288,33 @@ def generate_documentation(
     save_functions(functions_for_db)
     save_variables(variables)
     
-    print(f"✅ 分析完成: {len(classes)} 个类, {len(functions)} 个函数, {len(variables)} 个变量")
+    print(f"✅ Analysis completed: {len(classes)} classes, {len(functions)} functions, {len(variables)} variables")
     
-<<<<<<< HEAD
-    # 步骤 3: 获取文件结构（用于后续文档生成）
-    print("\n[3/6] 获取文件结构...")
+    # Step 3: Get file structure (for document generation)
+    print("\n[3/6] Getting file structure...")
     file_structure = get_file_structure(code_directory)
     
-    # 构建文件路径映射（从文件名到完整路径）
-    # 注意：CodeAnalyzer 中的 file 字段是文件名（os.path.basename），所以使用 name 作为键
+    # Build file path mapping (from filename to full path)
+    # Note: The file field in CodeAnalyzer is the filename (os.path.basename), so use name as key
     file_paths_map = {}
     for file_info in file_structure["files"]:
-        file_name = file_info["name"]  # 文件名，如 "example.py"
+        file_name = file_info["name"]  # Filename, e.g., "example.py"
         file_paths_map[file_name] = file_info["full_path"]
     
-    # 步骤 4: 存储到向量数据库
-    print("\n[4/6] 存储代码到向量数据库...")
-    print("  正在初始化嵌入模型（首次使用会下载模型，可能需要几分钟）...")
+    # Step 4: Store to vector database
+    print("\n[4/6] Storing code to vector database...")
+    print("  Initializing embedding model (first use will download model, may take a few minutes)...")
     vector_store = VectorStore()
-    print("  清空向量数据库...")
+    print("  Clearing vector database...")
     vector_store.clear()
     
-    print(f"  准备 {len(classes)} 个类和 {len(functions)} 个函数的代码元素...")
+    print(f"  Preparing {len(classes)} classes and {len(functions)} functions for code elements...")
     code_elements = prepare_code_elements_for_vector_store(classes, functions, file_paths_map)
-    print(f"  正在生成嵌入向量并存储到向量数据库（共 {len(code_elements)} 个元素，可能需要一些时间）...")
+    print(f"  Generating embeddings and storing to vector database ({len(code_elements)} elements, may take some time)...")
     vector_store.add_code_elements(code_elements)
     
-    # 步骤 5: 使用 LLM 生成解释（逐个处理）
-    print("\n[5/6] 使用 LLM 生成代码解释（逐个处理）...")
+    # Step 5: Generate explanations using LLM (process one by one)
+    print("\n[5/6] Generating code explanations using LLM (processing one by one)...")
     langchain_query = LangChainQuery(vector_store, language=language)
     
     elements_for_explanation = prepare_code_elements_for_explanation(classes, functions)
@@ -324,10 +323,10 @@ def generate_documentation(
         progress_callback=progress_callback
     )
     
-    print(f"✅ 生成了 {len(explanations)} 个代码元素的解释")
+    print(f"✅ Generated explanations for {len(explanations)} code elements")
     
-    # 步骤 6: 生成文档
-    print("\n[6/6] 生成 Markdown 文档...")
+    # Step 6: Generate documentation
+    print("\n[6/6] Generating Markdown documentation...")
     doc_generator = DocumentGenerator(language=language)
     
     project_name = os.path.basename(os.path.abspath(code_directory))
@@ -341,14 +340,14 @@ def generate_documentation(
         "variables": variables
     }
     
-    # 调试信息
-    print(f"  准备生成文档: {len(classes)} 个类, {len(functions)} 个函数, {len(variables)} 个变量")
+    # Debug information
+    print(f"  Preparing to generate documentation: {len(classes)} classes, {len(functions)} functions, {len(variables)} variables")
     if len(classes) == 0 and len(functions) == 0:
-        print("  ⚠️  警告: 没有找到任何类或函数！")
-        print("  可能的原因:")
-        print("    1. 项目目录中没有 Python 文件")
-        print("    2. Python 文件都是空的或只包含注释")
-        print("    3. 所有函数都被过滤掉了（如都是 __init__ 等魔法方法）")
+        print("  ⚠️  Warning: No classes or functions found!")
+        print("  Possible reasons:")
+        print("    1. No Python files in the project directory")
+        print("    2. Python files are empty or only contain comments")
+        print("    3. All functions were filtered out (e.g., all are __init__ and other magic methods)")
     
     markdown_text = doc_generator.generate_markdown(
         project_name=project_name,
@@ -363,65 +362,58 @@ def generate_documentation(
     doc_generator.save_markdown(markdown_text, md_output_path)
     
     print("\n" + "=" * 60)
-    print("✅ 文档生成完成！")
+    print("✅ Documentation generation completed!")
     print(f"   Markdown: {md_output_path}")
     print("=" * 60)
 
 
 def main():
-    """命令行入口"""
+    """Command line entry point"""
     parser = argparse.ArgumentParser(
-        description="AutoDoc - 代码文档自动生成系统",
+        description="AutoDoc - Code Documentation Generation System",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-示例:
-  python doc_generator.py code/                    # 分析 code/ 目录，生成中文文档
-  python doc_generator.py code/ --lang en          # 生成英文文档
-  python doc_generator.py code/ --output docs/      # 指定输出目录
-  python doc_generator.py code/ --filter controller,api  # 只扫描包含 controller 或 api 的文件
+Examples:
+  python doc_generator.py code/                    # Analyze code/ directory, generate English documentation
+  python doc_generator.py code/ --lang zh          # Generate Chinese documentation
+  python doc_generator.py code/ --output docs/    # Specify output directory
+  python doc_generator.py code/ --filter controller,api  # Only scan files containing controller or api
         """
     )
     
     parser.add_argument(
         "directory",
         type=str,
-        help="要分析的代码目录路径"
+        help="Path to the code directory to analyze"
     )
     
     parser.add_argument(
         "--output", "-o",
         type=str,
         default="output",
-        help="输出目录（默认: output）"
+        help="Output directory (default: output)"
     )
     
     parser.add_argument(
         "--lang", "-l",
         type=str,
         choices=["zh", "en"],
-        default="zh",
-        help="文档语言: zh (中文) 或 en (英文) (默认: zh)"
+        default="en",
+        help="Documentation language: zh (Chinese) or en (English) (default: en)"
     )
     
     parser.add_argument(
         "--filter",
         type=str,
         default="controller,api,route,endpoint,handler,service",
-        help="文件过滤关键词（逗号分隔），只扫描包含这些关键词的文件（默认: controller,api,route,endpoint,handler,service）"
-    )
-    
-    parser.add_argument(
-        "--filter",
-        type=str,
-        default="controller,api,route,endpoint,handler,service",
-        help="文件过滤关键词（逗号分隔），只扫描包含这些关键词的文件（默认: controller,api,route,endpoint,handler,service）"
+        help="File filter keywords (comma-separated), only scan files containing these keywords (default: controller,api,route,endpoint,handler,service)"
     )
     
     args = parser.parse_args()
     
-    # 检查目录是否存在
+    # Check if directory exists
     if not os.path.isdir(args.directory):
-        print(f"❌ 错误: 目录 '{args.directory}' 不存在")
+        print(f"❌ Error: Directory '{args.directory}' does not exist")
         return 1
     
     try:
@@ -433,10 +425,10 @@ def main():
         )
         return 0
     except KeyboardInterrupt:
-        print("\n\n⚠️  用户中断")
+        print("\n\n⚠️  User interrupted")
         return 1
     except Exception as e:
-        print(f"\n❌ 错误: {str(e)}")
+        print(f"\n❌ Error: {str(e)}")
         import traceback
         traceback.print_exc()
         return 1
