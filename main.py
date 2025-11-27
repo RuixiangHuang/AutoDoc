@@ -156,17 +156,13 @@ class CodeAnalyzer(ast.NodeVisitor):
         self.generic_visit(node)
     
     def _extract_code_snippet(self, start_line: int, end_line: int) -> str:
-        """根据行号范围提取源代码片段"""
         if not self.source_lines:
             return ""
-        # AST 行号从 1 开始，列表索引从 0 开始
         start_idx = max(0, start_line - 1)
         end_idx = min(len(self.source_lines), end_line)
         return '\n'.join(self.source_lines[start_idx:end_idx])
 
 def extract_code_elements(file_path):
-    """提取代码元素，支持多种编码格式"""
-    # 尝试多种编码方式
     encodings = ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252', 'gbk', 'gb2312']
     source = None
     
@@ -178,11 +174,11 @@ def extract_code_elements(file_path):
         except UnicodeDecodeError:
             continue
         except Exception as e:
-            print(f"⚠️  无法读取文件 {file_path}: {str(e)}")
+            print(f"⚠️  Cannot read file {file_path}: {str(e)}")
             return [], [], []
     
     if source is None:
-        print(f"⚠️  无法解码文件 {file_path}，跳过该文件")
+        print(f"⚠️  Cannot decode file in path: {file_path}，skip")
         return [], [], []
     
     try:
@@ -191,20 +187,13 @@ def extract_code_elements(file_path):
         analyzer.visit(tree)
         return analyzer.classes, analyzer.functions, analyzer.variables
     except SyntaxError as e:
-        print(f"⚠️  文件 {file_path} 有语法错误，跳过: {str(e)}")
+        print(f"⚠️  File {file_path} has gramma issue，skip: {str(e)}")
         return [], [], []
     except Exception as e:
-        print(f"⚠️  分析文件 {file_path} 时出错，跳过: {str(e)}")
+        print(f"⚠️  Analysis file {file_path} occurs issue，skip: {str(e)}")
         return [], [], []
 
 def scan_directory(directory, file_filter=None):
-    """
-    扫描目录中的 Python 文件
-    
-    Args:
-        directory: 要扫描的目录
-        file_filter: 文件过滤函数，接收 (file_path, file_name) 参数，返回 True 表示包含该文件
-    """
     all_classes = []
     all_functions = []
     all_variables = []
@@ -236,7 +225,6 @@ if __name__ == "__main__":
     code_dir = "code"
     classes, functions, variables = scan_directory(code_dir)
 
-    # 只保存前4个元素到数据库（保持兼容性）
     classes_for_db = [(c[0], c[1], c[2], c[3]) for c in classes]
     functions_for_db = [(f[0], f[1], f[2], f[3], f[4]) for f in functions]
     

@@ -47,7 +47,8 @@ class DocumentGenerator:
                 "docstring": "文档字符串",
                 "location": "位置",
                 "line": "行",
-                "no_explanation": "暂无说明"
+                "no_explanation": "暂无说明",
+                "decorator": "接口装饰器"
             },
             "en": {
                 "title": "Project Code Documentation",
@@ -62,7 +63,8 @@ class DocumentGenerator:
                 "docstring": "Docstring",
                 "location": "Location",
                 "line": "Line",
-                "no_explanation": "No explanation available"
+                "no_explanation": "No explanation available",
+                "decorator": "Interface Decorator"
             }
         }
         self.t = self.texts[language]
@@ -216,7 +218,7 @@ class DocumentGenerator:
                                     dec_str = f"@{dec_name}"
                                 decorator_strs.append(dec_str)
                         if decorator_strs:
-                            lines.append(f"- **接口装饰器**: {', '.join(decorator_strs)}\n")
+                            lines.append(f"- **{self.t['decorator']}**: {', '.join(decorator_strs)}\n")
                     
                     if docstring:
                         lines.append(f"- **{self.t['docstring']}**: {docstring}\n")

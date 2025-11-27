@@ -3,6 +3,14 @@ from database import (
     search_classes, search_functions, search_variables,
     get_class_with_details, get_statistics
 )
+from config import get_config, LLMConfig
+
+try:
+    from groq import Groq
+    GROQ_AVAILABLE = True
+except ImportError:
+    GROQ_AVAILABLE = False
+    Groq = None
 
 
 def search_information(query, search_type="all"):
@@ -47,9 +55,23 @@ Question: {query}
 Please provide a clear answer with relevant code locations."""
     
     try:
-        messages = [{"role": "user", "content": prompt}]
-        response = ollama.chat(model="qwen3-coder:30b", messages=messages)
-        return response['message']['content']
+        config = get_config()
+        provider = config.get_provider()
+        
+        if provider == LLMConfig.PROVIDER_GROQ:
+
+            api_key = config.get_groq_api_key()
+            client = Groq(api_key=api_key)
+            response = client.chat.completions.create(
+                model=config.groq_model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.1
+            )
+            return response.choices[0].message.content
+        else:
+            messages = [{"role": "user", "content": prompt}]
+            response = ollama.chat(model=config.ollama_model, messages=messages)
+            return response['message']['content']
     except Exception as e:
         return f"❌ LLM call failed: {str(e)}"
 

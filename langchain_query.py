@@ -2,8 +2,16 @@ from langchain_community.llms import Ollama
 from langchain_core.prompts import PromptTemplate
 from vector_store import VectorStore
 from typing import Dict, List, Optional
+from config import get_config, LLMConfig
 
-# 中英文提示词模板
+try:
+    from langchain_groq import ChatGroq
+    GROQ_AVAILABLE = True
+except ImportError:
+    GROQ_AVAILABLE = False
+    ChatGroq = None
+
+# Chinese and English prompt templates
 CHINESE_PROMPT_TEMPLATE = """请详细解释以下代码的功能、参数、返回值和实现逻辑。
 
 相关上下文代码：
@@ -26,7 +34,7 @@ Please provide a detailed explanation in English of this code's functionality, p
 
 
 class LangChainQuery:
-    """Use LangChain + Ollama for RAG queries, process functions/classes one by one"""
+    """Use LangChain + LLM (Ollama/Groq) for RAG queries, process functions/classes one by one"""
     
     def __init__(self, vector_store: VectorStore, language: str = "en"):
         """
@@ -38,11 +46,25 @@ class LangChainQuery:
         """
         self.vector_store = vector_store
         self.language = language
+        self.config = get_config()
         
-        # 初始化 Ollama LLM
-        self.llm = Ollama(model="qwen3-coder:30b")
+        # Initialize LLM based on configuration
+        provider = self.config.get_provider()
+        if provider == LLMConfig.PROVIDER_GROQ:
+            if not GROQ_AVAILABLE:
+                raise ImportError("langchain-groq is not installed. Please run: pip install langchain-groq")
+            api_key = self.config.get_groq_api_key()
+            if not api_key:
+                raise ValueError("Groq API Key is not set. Please set the GROQ_API_KEY environment variable or configure it in the .env file.")
+            self.llm = ChatGroq(
+                groq_api_key=api_key,
+                model_name=self.config.groq_model,
+                temperature=0.1
+            )
+        else:  # Default to Ollama
+            self.llm = Ollama(model=self.config.ollama_model)
         
-        # 选择提示词模板
+        # Select prompt template
         if language == "zh":
             self.prompt_template = CHINESE_PROMPT_TEMPLATE
         else:
@@ -62,17 +84,17 @@ class LangChainQuery:
         top_k: int = 3
     ) -> str:
         """
-        为单个代码元素（函数/类）生成解释
+        Generate explanation for a single code element (function/class)
         
         Args:
-            code_text: 当前代码元素的源代码
-            element_name: 代码元素名称（函数名或类名）
-            element_type: 类型（"function" 或 "class"）
-            file_name: 文件名
-            top_k: 从向量数据库检索的相关代码片段数量
+            code_text: Source code of the current code element
+            element_name: Code element name (function name or class name)
+            element_type: Type ("function" or "class")
+            file_name: File name
+            top_k: Number of related code snippets to retrieve from vector database
         
         Returns:
-            LLM 生成的解释文本
+            LLM-generated explanation text
         """
         try:
             # Retrieve related code snippets from vector database
@@ -107,7 +129,13 @@ class LangChainQuery:
             # Call LLM to generate explanation
             response = self.llm.invoke(prompt)
             
-            return response.strip()
+            # Extract text content from response (handle both string and AIMessage objects)
+            if hasattr(response, 'content'):
+                response_text = response.content
+            else:
+                response_text = str(response)
+            
+            return response_text.strip()
             
         except Exception as e:
             error_msg = f"Error generating explanation: {str(e)}" if self.language == "en" else f"生成解释时出错: {str(e)}"
@@ -148,7 +176,7 @@ class LangChainQuery:
             
             explanations[element_id] = explanation
             
-            # 调用进度回调
+            # Call progress callback
             if progress_callback:
                 progress_callback(idx, total)
         
