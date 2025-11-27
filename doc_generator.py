@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-主流程控制器：整合所有模块，实现完整的文档生成流程
+Main process controller: Integrate all modules to implement complete documentation generation workflow
 """
 import os
 import argparse
@@ -11,32 +11,40 @@ from vector_store import VectorStore
 from langchain_query import LangChainQuery
 from document_generator import DocumentGenerator
 from langchain_community.llms import Ollama
+from config import get_config, LLMConfig
+
+try:
+    from langchain_groq import ChatGroq
+    GROQ_AVAILABLE = True
+except ImportError:
+    GROQ_AVAILABLE = False
+    ChatGroq = None
 
 
 def get_file_structure(directory: str) -> dict:
-    """获取详细的目录结构"""
+    """Get detailed directory structure"""
     structure = {
         "files": [],
         "directories": []
     }
     
     for root, dirs, files in os.walk(directory):
-        # 获取相对路径
+        # Get relative path
         rel_root = os.path.relpath(root, directory)
         if rel_root == ".":
             rel_root = ""
         
-        # 添加目录信息
+        # Add directory information
         for dir_name in dirs:
             dir_path = os.path.join(rel_root, dir_name) if rel_root else dir_name
             structure["directories"].append(dir_path)
         
-        # 添加 Python 文件信息
+        # Add Python file information
         for file in files:
             if file.endswith(".py"):
                 file_path = os.path.join(rel_root, file) if rel_root else file
                 full_path = os.path.join(root, file)
-                # 获取文件大小（用于判断重要性）
+                # Get file size (for determining importance)
                 try:
                     file_size = os.path.getsize(full_path)
                 except:
@@ -56,16 +64,49 @@ def get_file_structure(directory: str) -> dict:
 
 def identify_interface_files(file_structure: dict, language: str = "zh") -> list:
     """
-    使用 LLM 识别哪些文件是接口文件
+    Use LLM to identify which files are interface files
     
     Args:
-        file_structure: 目录结构字典
-        language: 语言选择
+        file_structure: Directory structure dictionary
+        language: Language selection
     
     Returns:
-        接口文件路径列表
+        List of interface file paths
     """
-    llm = Ollama(model="qwen3-coder:30b")
+    config = get_config()
+    provider = config.get_provider()
+    
+    if provider == LLMConfig.PROVIDER_GROQ:
+        if not GROQ_AVAILABLE:
+            print("  ⚠️  langchain-groq is not installed, using keyword filtering")
+            # Fallback to keyword filtering
+            keywords = ['controller', 'api', 'route', 'endpoint', 'handler', 'service']
+            interface_files = []
+            for file_info in file_structure["files"]:
+                file_lower = file_info["path"].lower()
+                if any(keyword in file_lower for keyword in keywords):
+                    interface_files.append(file_info["path"])
+            return interface_files
+        
+        api_key = config.get_groq_api_key()
+        if not api_key:
+            print("  ⚠️  Groq API Key is not set, using keyword filtering")
+            # Fallback to keyword filtering
+            keywords = ['controller', 'api', 'route', 'endpoint', 'handler', 'service']
+            interface_files = []
+            for file_info in file_structure["files"]:
+                file_lower = file_info["path"].lower()
+                if any(keyword in file_lower for keyword in keywords):
+                    interface_files.append(file_info["path"])
+            return interface_files
+        
+        llm = ChatGroq(
+            groq_api_key=api_key,
+            model_name=config.groq_model,
+            temperature=0.1
+        )
+    else:
+        llm = Ollama(model=config.ollama_model)
     
     # Build directory structure description
     structure_text = "Directory structure:\n"
@@ -76,7 +117,7 @@ def identify_interface_files(file_structure: dict, language: str = "zh") -> list
     if len(file_structure["files"]) > 50:
         structure_text += f"  ... {len(file_structure['files']) - 50} more files\n"
     
-    # 构建提示词
+    # Build prompt
     if language == "zh":
         prompt = f"""请分析以下项目目录结构，识别出哪些文件是接口文件（如 controller、API、路由、端点等）。
 
@@ -103,20 +144,26 @@ Return only the paths, without any explanations or other text. If a file is clea
     try:
         response = llm.invoke(prompt)
         
-        # 解析响应，提取文件路径
+        # Extract text content from response (handle both string and AIMessage objects)
+        if hasattr(response, 'content'):
+            response_text = response.content
+        else:
+            response_text = str(response)
+        
+        # Parse response and extract file paths
         interface_files = []
-        for line in response.strip().split('\n'):
+        for line in response_text.strip().split('\n'):
             line = line.strip()
-            # 移除可能的编号、符号等
+            # Remove possible numbering, symbols, etc.
             line = line.lstrip('0123456789.-) ').strip()
             if line and not line.startswith('#'):
-                # 检查这个路径是否在文件列表中
+                # Check if this path is in the file list
                 for file_info in file_structure["files"]:
                     if line in file_info["path"] or file_info["path"].endswith(line):
                         interface_files.append(file_info["path"])
                         break
         
-        return list(set(interface_files))  # 去重
+        return list(set(interface_files))  # Remove duplicates
         
     except Exception as e:
         print(f"  ⚠️  Error identifying interface files with LLM: {str(e)}")
@@ -132,15 +179,15 @@ Return only the paths, without any explanations or other text. If a file is clea
 
 
 def prepare_code_elements_for_vector_store(classes, functions, file_paths_map):
-    """准备代码元素用于向量数据库存储"""
+    """Prepare code elements for vector database storage"""
     code_elements = []
     
-    # 处理类
+    # Process classes
     for cls in classes:
         name, file, start, end, code_snippet, docstring = cls
         full_path = file_paths_map.get(file, file)
         
-        # 构建用于向量化的文本（包含代码和元数据）
+        # Build text for vectorization (including code and metadata)
         text = f"class {name}\n{code_snippet}"
         if docstring:
             text = f"{docstring}\n{text}"
@@ -158,9 +205,9 @@ def prepare_code_elements_for_vector_store(classes, functions, file_paths_map):
             }
         })
     
-    # 处理函数
+    # Process functions
     for func in functions:
-        # 函数元组可能是 7 个或 8 个元素（新版本包含 decorators）
+        # Function tuple may have 7 or 8 elements (new version includes decorators)
         if len(func) >= 7:
             name, file, class_name, start, end, code_snippet, docstring = func[0:7]
             decorators = func[7] if len(func) > 7 else []
@@ -170,12 +217,12 @@ def prepare_code_elements_for_vector_store(classes, functions, file_paths_map):
         
         full_path = file_paths_map.get(file, file)
         
-        # 构建用于向量化的文本
+        # Build text for vectorization
         text = f"def {name}\n{code_snippet}"
         if docstring:
             text = f"{docstring}\n{text}"
         
-        # 添加装饰器信息
+        # Add decorator information
         decorator_info = []
         for dec in decorators:
             if isinstance(dec, dict):
@@ -202,10 +249,10 @@ def prepare_code_elements_for_vector_store(classes, functions, file_paths_map):
 
 
 def prepare_code_elements_for_explanation(classes, functions):
-    """准备代码元素用于 LLM 解释"""
+    """Prepare code elements for LLM explanation"""
     elements = []
     
-    # 处理类
+    # Process classes
     for cls in classes:
         name, file, start, end, code_snippet, docstring = cls
         elements.append({
@@ -215,9 +262,9 @@ def prepare_code_elements_for_explanation(classes, functions):
             "code": code_snippet
         })
     
-    # 处理函数
+    # Process functions
     for func in functions:
-        # 函数元组可能是 7 个或 8 个元素
+        # Function tuple may have 7 or 8 elements
         if len(func) >= 7:
             name, file, class_name, start, end, code_snippet, docstring = func[0:7]
         else:
@@ -279,9 +326,9 @@ def generate_documentation(
     
     classes, functions, variables = scan_directory(code_directory, file_filter=interface_file_filter)
     
-    # 保存到数据库（只保存基本信息）
+    # Save to database (only save basic information)
     classes_for_db = [(c[0], c[1], c[2], c[3]) for c in classes]
-    # 函数元组可能是 7 个或 8 个元素，只取前 5 个用于数据库
+    # Function tuple may have 7 or 8 elements, only take first 5 for database
     functions_for_db = [(f[0], f[1], f[2], f[3], f[4]) for f in functions]
     
     save_classes(classes_for_db)
@@ -331,7 +378,7 @@ def generate_documentation(
     
     project_name = os.path.basename(os.path.abspath(code_directory))
     
-    # 准备文件结构列表（用于文档显示）
+    # Prepare file structure list (for document display)
     file_structure_list = [f["path"] for f in file_structure["files"]]
     
     code_data = {
@@ -356,7 +403,7 @@ def generate_documentation(
         explanations=explanations
     )
     
-    # 保存 Markdown
+    # Save Markdown
     os.makedirs(output_dir, exist_ok=True)
     md_output_path = os.path.join(output_dir, f"documentation_{language}.md")
     doc_generator.save_markdown(markdown_text, md_output_path)
