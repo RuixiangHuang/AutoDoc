@@ -42,7 +42,7 @@ def search_information(query, search_type="all"):
                 context_parts.append(f"... {len(variables) - 10} more matches")
     
     if not context_parts:
-        return "❌ No matching results found."
+        return "No matching results found."
     
     context = "\n".join(context_parts)
     
@@ -73,21 +73,20 @@ Please provide a clear answer with relevant code locations."""
             response = ollama.chat(model=config.ollama_model, messages=messages)
             return response['message']['content']
     except Exception as e:
-        return f"❌ LLM call failed: {str(e)}"
+        return f"LLM call failed: {str(e)}"
 
 
 def show_statistics():
     stats = get_statistics()
-    print("\n📊 Codebase Statistics:")
+    print("\nCodebase Statistics:")
     print(f"  - Classes: {stats['classes']}")
     print(f"  - Functions: {stats['functions']}")
     print(f"  - Variables: {stats['variables']}")
     print(f"  - Files: {stats['files']}")
 
 
-# Interactive search
 if __name__ == "__main__":
-    print("🔍 Codebase Intelligent Query Tool")
+    print("Codebase Intelligent Query Tool")
     print("Tip: Type 'stats' to view statistics, 'exit' to quit\n")
     
     show_statistics()
@@ -114,5 +113,5 @@ if __name__ == "__main__":
         search_type = search_type_map.get(search_type_input, "all")
         
         answer = search_information(q, search_type)
-        print("\n✅ Answer:\n", answer)
+        print("\nAnswer:\n", answer)
         print("-" * 50)

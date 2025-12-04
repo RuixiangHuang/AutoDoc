@@ -125,14 +125,14 @@ class DocumentationBuilder:
         with open(html_file, "w", encoding="utf-8") as f:
             f.write(html)
 
-        print(f"✅ Markdown saved to {md_file}")
-        print(f"✅ HTML saved to {html_file}")
+        print(f"Markdown saved to {md_file}")
+        print(f"HTML saved to {html_file}")
 
 
 if __name__ == "__main__":
     path = input("Enter Python file path: ").strip()
     if not os.path.exists(path):
-        print("❌ File not found.")
+        print("File not found.")
         exit()
 
     analyzer = CodeAnalyzer(path)

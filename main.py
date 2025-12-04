@@ -10,27 +10,23 @@ class CodeAnalyzer(ast.NodeVisitor):
     def __init__(self, file_name, file_path=None, source_code=None):
         self.file_name = file_name
         self.file_path = file_path
-        self.source_code = source_code  # 完整的源代码
+        self.source_code = source_code
         self.source_lines = source_code.split('\n') if source_code else []
         self.current_class = None
         self.current_function = None
         self.classes = []
         self.functions = []
         self.variables = []
-        # 用于存储接口相关信息
-        self.api_decorators = {}  # function_name -> [decorators]
+        self.api_decorators = {}
 
     # ----- Classes -----
     def visit_ClassDef(self, node):
         start = node.lineno
         end = max([n.lineno for n in ast.walk(node) if hasattr(n, "lineno")], default=start)
-        # 提取源代码片段
         code_snippet = self._extract_code_snippet(start, end)
         
-        # 限制代码片段大小（最多 1000 行，避免 context window 溢出）
         max_lines = 1000
         if end - start > max_lines:
-            # 如果代码太长，只取前 max_lines 行
             code_snippet = self._extract_code_snippet(start, start + max_lines)
             end = start + max_lines
         
@@ -43,7 +39,6 @@ class CodeAnalyzer(ast.NodeVisitor):
 
     # ----- Functions -----
     def visit_FunctionDef(self, node):
-        # 过滤掉 Python 内置的魔法方法和基础方法
         skip_functions = {
             "__init__", "__str__", "__repr__", "__eq__", "__ne__", "__hash__",
             "__lt__", "__le__", "__gt__", "__ge__", "__del__", "__new__",
@@ -56,19 +51,15 @@ class CodeAnalyzer(ast.NodeVisitor):
         if node.name not in skip_functions:
             start = node.lineno
             end = max([n.lineno for n in ast.walk(node) if hasattr(n, "lineno")], default=start)
-            # 提取源代码片段
             code_snippet = self._extract_code_snippet(start, end)
             
-            # 限制代码片段大小（最多 500 行，避免 context window 溢出）
             max_lines = 500
             if end - start > max_lines:
-                # 如果代码太长，只取前 max_lines 行
                 code_snippet = self._extract_code_snippet(start, start + max_lines)
                 end = start + max_lines
             
             docstring = ast.get_docstring(node)
             
-            # 提取装饰器信息（用于识别 API 接口）
             decorators = self._extract_decorators(node)
             
             self.functions.append((
@@ -79,7 +70,7 @@ class CodeAnalyzer(ast.NodeVisitor):
                 end,
                 code_snippet,
                 docstring,
-                decorators  # 添加装饰器信息
+                decorators
             ))
         prev_function = self.current_function
         self.current_function = node.name
@@ -87,11 +78,9 @@ class CodeAnalyzer(ast.NodeVisitor):
         self.current_function = prev_function
     
     def _extract_decorators(self, node):
-        """提取函数的装饰器信息"""
         decorators = []
         for decorator in node.decorator_list:
             if isinstance(decorator, ast.Call):
-                # 处理 @app.route('/path') 这样的装饰器
                 if isinstance(decorator.func, ast.Attribute):
                     decorator_name = f"{self._get_attr_name(decorator.func)}"
                 elif isinstance(decorator.func, ast.Name):
@@ -99,7 +88,6 @@ class CodeAnalyzer(ast.NodeVisitor):
                 else:
                     decorator_name = "unknown"
                 
-                # 提取参数
                 args = []
                 for arg in decorator.args:
                     if isinstance(arg, ast.Constant):
@@ -124,7 +112,6 @@ class CodeAnalyzer(ast.NodeVisitor):
         return decorators
     
     def _get_attr_name(self, node):
-        """获取属性名称，如 app.route -> app.route"""
         if isinstance(node, ast.Attribute):
             if isinstance(node.value, ast.Name):
                 return f"{node.value.id}.{node.attr}"
@@ -174,11 +161,11 @@ def extract_code_elements(file_path):
         except UnicodeDecodeError:
             continue
         except Exception as e:
-            print(f"⚠️  Cannot read file {file_path}: {str(e)}")
+            print(f"Cannot read file {file_path}: {str(e)}")
             return [], [], []
     
     if source is None:
-        print(f"⚠️  Cannot decode file in path: {file_path}，skip")
+        print(f"Cannot decode file in path: {file_path}, skip")
         return [], [], []
     
     try:
@@ -187,10 +174,10 @@ def extract_code_elements(file_path):
         analyzer.visit(tree)
         return analyzer.classes, analyzer.functions, analyzer.variables
     except SyntaxError as e:
-        print(f"⚠️  File {file_path} has gramma issue，skip: {str(e)}")
+        print(f"File {file_path} has syntax error, skip: {str(e)}")
         return [], [], []
     except Exception as e:
-        print(f"⚠️  Analysis file {file_path} occurs issue，skip: {str(e)}")
+        print(f"Analysis file {file_path} error, skip: {str(e)}")
         return [], [], []
 
 def scan_directory(directory, file_filter=None):
@@ -201,7 +188,6 @@ def scan_directory(directory, file_filter=None):
         for file in files:
             if file.endswith(".py"):
                 path = os.path.join(root, file)
-                # 应用文件过滤
                 if file_filter and not file_filter(path, file):
                     continue
                 cls, funcs, vars_ = extract_code_elements(path)
@@ -216,7 +202,7 @@ def save_to_csv(data, columns, filename):
         writer = csv.writer(f)
         writer.writerow(columns)
         writer.writerows(data)
-    print(f"✅ Saved {len(data)} entries to {filepath}")
+    print(f"Saved {len(data)} entries to {filepath}")
 
 if __name__ == "__main__":
     init_database()
@@ -238,4 +224,4 @@ if __name__ == "__main__":
         save_to_csv(functions_for_db, ["Function Name", "File", "Class Name", "Start Line", "End Line"], "functions.csv")
         save_to_csv(variables, ["Variable Name", "File", "Class Name", "Function Name", "Line Number"], "variables.csv")
     
-    print("\n✅ Code analysis completed! Data saved to SQLite database.")
+    print("\nCode analysis completed! Data saved to SQLite database.")

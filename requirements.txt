@@ -11,6 +11,9 @@ sentence-transformers>=2.2.0
 # Markdown processing
 markdown>=3.5.0
 
+# Progress bar
+alive-progress>=3.0.0
+
 # Existing dependencies
 # (keep any existing ones)
 

@@ -5,6 +5,7 @@ from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from typing import List, Dict, Tuple, Optional
 import uuid
+from alive_progress import alive_bar
 
 VECTOR_DB_PATH = "data_clean/chroma_db"
 
@@ -20,7 +21,7 @@ class VectorStore:
         self.embeddings = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-MiniLM-L6-v2"
         )
-        print("    ✅ Embedding model loaded")
+        print("    Embedding model loaded")
 
         self.client = chromadb.PersistentClient(
             path=persist_directory,
@@ -69,26 +70,24 @@ class VectorStore:
         total = len(texts)
         chroma_batch_size = 5000  # Less than ChromaDB's maximum batch size 5461
         
-        print(f"    Generating embeddings and storing ({total} elements, {(total + chroma_batch_size - 1) // chroma_batch_size} batches)...")
+        num_batches = (total + chroma_batch_size - 1) // chroma_batch_size
+        print(f"    Generating embeddings and storing ({total} elements, {num_batches} batches)...")
         
-        # Process in batches to avoid exceeding ChromaDB batch limit
-        processed = 0
-        for i in range(0, total, chroma_batch_size):
-            batch_texts = texts[i:i+chroma_batch_size]
-            batch_metadatas = metadatas[i:i+chroma_batch_size]
-            batch_ids = ids[i:i+chroma_batch_size]
-            
-            # Generate embeddings and store
-            self.vectorstore.add_texts(
-                texts=batch_texts,
-                metadatas=batch_metadatas,
-                ids=batch_ids
-            )
-            
-            processed = min(i + chroma_batch_size, total)
-            print(f"    Processed: {processed}/{total} ({processed*100//total}%)")
+        with alive_bar(num_batches) as bar:
+            for i in range(0, total, chroma_batch_size):
+                batch_texts = texts[i:i+chroma_batch_size]
+                batch_metadatas = metadatas[i:i+chroma_batch_size]
+                batch_ids = ids[i:i+chroma_batch_size]
+                
+                self.vectorstore.add_texts(
+                    texts=batch_texts,
+                    metadatas=batch_metadatas,
+                    ids=batch_ids
+                )
+                
+                bar()
         
-        print(f"    ✅ Added {total} code elements to vector database")
+        print(f"    Added {total} code elements to vector database")
     
     def search_similar(self, query: str, top_k: int = 5, filter_dict: Optional[Dict] = None) -> List[Dict]:
         """
@@ -131,9 +130,9 @@ class VectorStore:
                 metadata={"description": "Code elements (classes, functions) for RAG"}
             )
             self._init_vectorstore()
-            print("✅ Vector database cleared")
+            print("Vector database cleared")
         except Exception as e:
-            print(f"⚠️ Error clearing vector database: {e}")
+            print(f"Error clearing vector database: {e}")
     
     def get_stats(self) -> Dict:
         """Get vector database statistics"""
