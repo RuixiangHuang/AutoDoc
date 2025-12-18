@@ -15,7 +15,7 @@ class LLMConfig:
         
         # Groq configuration
         self.groq_api_key = os.getenv("GROQ_API_KEY", "")
-        self.groq_model = os.getenv("GROQ_MODEL", "llama-3.1-70b-versatile")
+        self.groq_model = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
         
         # Ollama configuration
         self.ollama_model = os.getenv("OLLAMA_MODEL", "qwen3-coder:30b")
@@ -63,6 +63,18 @@ class LLMConfig:
     def get_groq_api_key(self) -> Optional[str]:
         """Get Groq API Key"""
         return self.groq_api_key if self.groq_api_key else None
+    
+    def set_groq_config(self, api_key: str, model: str):
+        """Set Groq configuration dynamically"""
+        self.provider = self.PROVIDER_GROQ
+        self.groq_api_key = api_key
+        self.groq_model = model
+    
+    def set_ollama_config(self, model: str, base_url: str = "http://localhost:11434"):
+        """Set Ollama configuration dynamically"""
+        self.provider = self.PROVIDER_OLLAMA
+        self.ollama_model = model
+        self.ollama_base_url = base_url
     
     def validate(self) -> tuple[bool, str]:
         """Validate if configuration is valid"""
