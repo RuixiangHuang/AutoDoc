@@ -8,8 +8,20 @@ ollama>=0.1.0
 groq>=0.4.0
 sentence-transformers>=2.2.0
 
+# Web Interface
+streamlit>=1.28.0
+
+# Token counting
+tiktoken>=0.5.0
+
 # Markdown processing
 markdown>=3.5.0
+
+# PDF generation (optional)
+weasyprint>=60.0
+
+# Progress bar
+alive-progress>=3.0.0
 
 # Existing dependencies
 # (keep any existing ones)

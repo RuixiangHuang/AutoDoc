@@ -56,7 +56,7 @@ def init_database():
     
     conn.commit()
     conn.close()
-    print(f"✅ Database initialized at {DB_PATH}")
+    print(f"Database initialized at {DB_PATH}")
 
 
 def clear_database():
@@ -67,7 +67,7 @@ def clear_database():
     cursor.execute("DELETE FROM variables")
     conn.commit()
     conn.close()
-    print("✅ Database cleared")
+    print("Database cleared")
 
 
 def save_classes(classes: List[Tuple[str, str, int, int]]):
@@ -79,7 +79,7 @@ def save_classes(classes: List[Tuple[str, str, int, int]]):
     )
     conn.commit()
     conn.close()
-    print(f"✅ Saved {len(classes)} classes to database")
+    print(f"Saved {len(classes)} classes to database")
 
 
 def save_functions(functions: List[Tuple[str, str, str, int, int]]):
@@ -91,7 +91,7 @@ def save_functions(functions: List[Tuple[str, str, str, int, int]]):
     )
     conn.commit()
     conn.close()
-    print(f"✅ Saved {len(functions)} functions to database")
+    print(f"Saved {len(functions)} functions to database")
 
 
 def save_variables(variables: List[Tuple[str, str, str, str, int]]):
@@ -103,7 +103,7 @@ def save_variables(variables: List[Tuple[str, str, str, str, int]]):
     )
     conn.commit()
     conn.close()
-    print(f"✅ Saved {len(variables)} variables to database")
+    print(f"Saved {len(variables)} variables to database")
 
 
 def search_classes(query: str) -> List[Tuple]:

@@ -65,6 +65,11 @@ data_clean/*.sqlite3
 output/
 *.pdf
 
+# Documentation files (auto-generated)
+README_APP.md
+QUICKSTART_WEB.md
+WEB_INTERFACE_SUMMARY.md
+
 # Data files (CSV exports can be regenerated)
 data_clean/*.csv
 

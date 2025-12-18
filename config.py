@@ -54,7 +54,7 @@ class LLMConfig:
                             elif key == "OLLAMA_BASE_URL" and not os.getenv("OLLAMA_BASE_URL"):
                                 self.ollama_base_url = value
             except Exception as e:
-                print(f"⚠️  Error reading .env file: {str(e)}")
+                print(f"Error reading .env file: {str(e)}")
     
     def get_provider(self) -> str:
         """Get current LLM provider"""

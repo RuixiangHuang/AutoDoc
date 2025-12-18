@@ -3,6 +3,8 @@ from langchain_core.prompts import PromptTemplate
 from vector_store import VectorStore
 from typing import Dict, List, Optional
 from config import get_config, LLMConfig
+from alive_progress import alive_bar
+from token_counter import get_token_counter
 
 try:
     from langchain_groq import ChatGroq
@@ -11,18 +13,7 @@ except ImportError:
     GROQ_AVAILABLE = False
     ChatGroq = None
 
-# Chinese and English prompt templates
-CHINESE_PROMPT_TEMPLATE = """请详细解释以下代码的功能、参数、返回值和实现逻辑。
-
-相关上下文代码：
-{context}
-
-当前代码：
-{code}
-
-请用中文详细解释这段代码的功能、参数、返回值（如果有）、实现逻辑和用途。如果代码不完整，请根据上下文进行合理推断。"""
-
-ENGLISH_PROMPT_TEMPLATE = """Please explain in detail the functionality, parameters, return values, and implementation logic of the following code.
+PROMPT_TEMPLATE = """Please explain in detail the functionality, parameters, return values, and implementation logic of the following code.
 
 Related context code:
 {context}
@@ -36,19 +27,16 @@ Please provide a detailed explanation in English of this code's functionality, p
 class LangChainQuery:
     """Use LangChain + LLM (Ollama/Groq) for RAG queries, process functions/classes one by one"""
     
-    def __init__(self, vector_store: VectorStore, language: str = "en"):
+    def __init__(self, vector_store: VectorStore):
         """
         Initialize LangChain query handler
         
         Args:
             vector_store: VectorStore instance
-            language: Language selection, "zh" for Chinese, "en" for English
         """
         self.vector_store = vector_store
-        self.language = language
         self.config = get_config()
         
-        # Initialize LLM based on configuration
         provider = self.config.get_provider()
         if provider == LLMConfig.PROVIDER_GROQ:
             if not GROQ_AVAILABLE:
@@ -61,17 +49,11 @@ class LangChainQuery:
                 model_name=self.config.groq_model,
                 temperature=0.1
             )
-        else:  # Default to Ollama
+        else:
             self.llm = Ollama(model=self.config.ollama_model)
         
-        # Select prompt template
-        if language == "zh":
-            self.prompt_template = CHINESE_PROMPT_TEMPLATE
-        else:
-            self.prompt_template = ENGLISH_PROMPT_TEMPLATE
-        
         self.prompt = PromptTemplate(
-            template=self.prompt_template,
+            template=PROMPT_TEMPLATE,
             input_variables=["context", "code"]
         )
     
@@ -117,11 +99,10 @@ class LangChainQuery:
                     if len(context_snippets) >= top_k:
                         break
             
-            # Build context
             if context_snippets:
                 context = "\n\n---\n\n".join(context_snippets)
             else:
-                context = "No related context code." if self.language == "en" else "无相关上下文代码。"
+                context = "No related context code."
             
             # Build prompt
             prompt = self.prompt.format(context=context, code=code_text)
@@ -135,16 +116,32 @@ class LangChainQuery:
             else:
                 response_text = str(response)
             
+            # Track token usage
+            token_counter = get_token_counter()
+            provider = self.config.get_provider()
+            
+            if provider == LLMConfig.PROVIDER_GROQ and hasattr(response, 'response_metadata'):
+                # Groq provides token usage in metadata
+                usage = response.response_metadata.get('token_usage', {})
+                input_tokens = usage.get('prompt_tokens', 0)
+                output_tokens = usage.get('completion_tokens', 0)
+                model_name = self.config.groq_model
+                token_counter.add_usage(input_tokens, output_tokens, model_name, "explanation")
+            else:
+                # Ollama doesn't provide token count, estimate it
+                input_tokens = token_counter.estimate_tokens(prompt)
+                output_tokens = token_counter.estimate_tokens(response_text)
+                model_name = self.config.ollama_model
+                token_counter.add_usage(input_tokens, output_tokens, model_name, "explanation")
+            
             return response_text.strip()
             
         except Exception as e:
-            error_msg = f"Error generating explanation: {str(e)}" if self.language == "en" else f"生成解释时出错: {str(e)}"
-            return error_msg
+            return f"Error generating explanation: {str(e)}"
     
     def batch_explain(
         self,
-        code_elements: List[Dict],
-        progress_callback: Optional[callable] = None
+        code_elements: List[Dict]
     ) -> Dict[str, str]:
         """
         Batch process code elements, generate explanation for each element
@@ -155,7 +152,6 @@ class LangChainQuery:
                 - type: "function" or "class"
                 - file: File name
                 - code: Source code
-            progress_callback: Optional callback function, receives (current, total) parameters
         
         Returns:
             Dict mapping element_id -> explanation
@@ -163,22 +159,20 @@ class LangChainQuery:
         explanations = {}
         total = len(code_elements)
         
-        for idx, element in enumerate(code_elements, 1):
-            element_id = f"{element['file']}::{element['type']}::{element['name']}"
-            
-            explanation = self.explain_code_element(
-                code_text=element["code"],
-                element_name=element["name"],
-                element_type=element["type"],
-                file_name=element["file"],
-                top_k=3
-            )
-            
-            explanations[element_id] = explanation
-            
-            # Call progress callback
-            if progress_callback:
-                progress_callback(idx, total)
+        with alive_bar(total) as bar:
+            for element in code_elements:
+                element_id = f"{element['file']}::{element['type']}::{element['name']}"
+                
+                explanation = self.explain_code_element(
+                    code_text=element["code"],
+                    element_name=element["name"],
+                    element_type=element["type"],
+                    file_name=element["file"],
+                    top_k=3
+                )
+                
+                explanations[element_id] = explanation
+                bar()
         
         return explanations
 
