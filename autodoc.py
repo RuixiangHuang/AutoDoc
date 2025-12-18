@@ -262,8 +262,16 @@ def generate_documentation(
     print("=" * 60)
     print("AutoDoc - Code Documentation Generation System")
     print("=" * 60)
-    print(f"Code Directory: {code_directory}")
-    print(f"Output Directory: {output_dir}")
+    
+    # Check if input is a file or directory
+    is_single_file = os.path.isfile(code_directory) and code_directory.endswith('.py')
+    
+    if is_single_file:
+        print(f"Single File Mode: {code_directory}")
+        print(f"Output Directory: {output_dir}")
+    else:
+        print(f"Code Directory: {code_directory}")
+        print(f"Output Directory: {output_dir}")
     print("=" * 60)
     
     print("\n[1/6] Initializing database...")
@@ -272,13 +280,30 @@ def generate_documentation(
     
     print("\n[2/6] Scanning directory and analyzing code...")
     
-    def interface_file_filter(file_path, file_name):
-        keywords = [k.strip() for k in file_filter_keywords.split(',')]
-        file_lower = file_name.lower()
-        path_lower = file_path.lower()
-        return any(keyword in file_lower or keyword in path_lower for keyword in keywords)
-    
-    classes, functions, variables = scan_directory(code_directory, file_filter=interface_file_filter)
+    # Handle single file or directory
+    if is_single_file:
+        # Single file mode - analyze just this file
+        print(f"Analyzing single file: {os.path.basename(code_directory)}")
+        classes, functions, variables = extract_code_elements(code_directory)
+        code_directory_for_structure = os.path.dirname(code_directory)
+    else:
+        # Directory mode - use filtering
+        code_directory_for_structure = code_directory
+        
+        # If filter keywords are provided, use the filter
+        if file_filter_keywords and file_filter_keywords.strip():
+            def interface_file_filter(file_path, file_name):
+                keywords = [k.strip() for k in file_filter_keywords.split(',') if k.strip()]
+                if not keywords:  # If no valid keywords, don't filter
+                    return True
+                file_lower = file_name.lower()
+                path_lower = file_path.lower()
+                return any(keyword in file_lower or keyword in path_lower for keyword in keywords)
+            
+            classes, functions, variables = scan_directory(code_directory, file_filter=interface_file_filter)
+        else:
+            # Don't use filter, scan all files
+            classes, functions, variables = scan_directory(code_directory, file_filter=None)
     
     classes_for_db = [(c[0], c[1], c[2], c[3]) for c in classes]
     functions_for_db = [(f[0], f[1], f[2], f[3], f[4]) for f in functions]
@@ -290,7 +315,19 @@ def generate_documentation(
     print(f"Analysis completed: {len(classes)} classes, {len(functions)} functions, {len(variables)} variables")
     
     print("\n[3/6] Getting file structure...")
-    file_structure = get_file_structure(code_directory)
+    if is_single_file:
+        # Create minimal file structure for single file
+        file_structure = {
+            "files": [{
+                "path": os.path.basename(code_directory),
+                "name": os.path.basename(code_directory),
+                "size": os.path.getsize(code_directory),
+                "full_path": code_directory
+            }],
+            "directories": []
+        }
+    else:
+        file_structure = get_file_structure(code_directory)
     
     file_paths_map = {}
     for file_info in file_structure["files"]:
@@ -319,7 +356,10 @@ def generate_documentation(
     print("\n[6/6] Generating Markdown documentation...")
     doc_generator = DocumentGenerator()
     
-    project_name = os.path.basename(os.path.abspath(code_directory))
+    if is_single_file:
+        project_name = os.path.basename(code_directory).replace('.py', '')
+    else:
+        project_name = os.path.basename(os.path.abspath(code_directory))
     
     file_structure_list = [f["path"] for f in file_structure["files"]]
     
@@ -363,13 +403,14 @@ Examples:
   python autodoc.py code/
   python autodoc.py code/ --output docs/
   python autodoc.py code/ --filter controller,api
+  python autodoc.py example.py --filter ""
         """
     )
     
     parser.add_argument(
         "directory",
         type=str,
-        help="Path to the code directory to analyze"
+        help="Path to the code directory or Python file to analyze"
     )
     
     parser.add_argument(
@@ -388,8 +429,15 @@ Examples:
     
     args = parser.parse_args()
     
-    if not os.path.isdir(args.directory):
-        print(f"Error: Directory '{args.directory}' does not exist")
+    # Check if path is a valid directory or Python file
+    is_file = os.path.isfile(args.directory) and args.directory.endswith('.py')
+    is_dir = os.path.isdir(args.directory)
+    
+    if not is_file and not is_dir:
+        if os.path.exists(args.directory):
+            print(f"Error: '{args.directory}' is not a Python file or directory")
+        else:
+            print(f"Error: Path '{args.directory}' does not exist")
         return 1
     
     try:

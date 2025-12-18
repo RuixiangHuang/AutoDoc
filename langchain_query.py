@@ -4,6 +4,7 @@ from vector_store import VectorStore
 from typing import Dict, List, Optional
 from config import get_config, LLMConfig
 from alive_progress import alive_bar
+from token_counter import get_token_counter
 
 try:
     from langchain_groq import ChatGroq
@@ -114,6 +115,24 @@ class LangChainQuery:
                 response_text = response.content
             else:
                 response_text = str(response)
+            
+            # Track token usage
+            token_counter = get_token_counter()
+            provider = self.config.get_provider()
+            
+            if provider == LLMConfig.PROVIDER_GROQ and hasattr(response, 'response_metadata'):
+                # Groq provides token usage in metadata
+                usage = response.response_metadata.get('token_usage', {})
+                input_tokens = usage.get('prompt_tokens', 0)
+                output_tokens = usage.get('completion_tokens', 0)
+                model_name = self.config.groq_model
+                token_counter.add_usage(input_tokens, output_tokens, model_name, "explanation")
+            else:
+                # Ollama doesn't provide token count, estimate it
+                input_tokens = token_counter.estimate_tokens(prompt)
+                output_tokens = token_counter.estimate_tokens(response_text)
+                model_name = self.config.ollama_model
+                token_counter.add_usage(input_tokens, output_tokens, model_name, "explanation")
             
             return response_text.strip()
             
