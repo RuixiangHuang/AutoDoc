@@ -8,6 +8,8 @@ import sys
 import streamlit as st
 import traceback
 from pathlib import Path
+import time
+from datetime import timedelta
 
 # Set environment variables
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -285,6 +287,11 @@ else:
                 del st.session_state['markdown_content']
             if 'pdf_path' in st.session_state:
                 del st.session_state['pdf_path']
+            if 'generation_time' in st.session_state:
+                del st.session_state['generation_time']
+            
+            # Start timer
+            start_time = time.time()
             
             # Reset token counter for new generation
             token_counter = get_token_counter()
@@ -306,6 +313,10 @@ else:
                     def add_log(message):
                         logs.append(message)
                         log_area.text("\n".join(logs))
+                    
+                    # Add start time to logs
+                    add_log(f"⏱️ Start Time: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time))}")
+                    add_log("")
                     
                     # Step 1: Initialize
                     status_text.text("⏳ [1/6] Initializing database...")
@@ -368,7 +379,15 @@ else:
                             add_log("Tip: Make sure WeasyPrint dependencies are installed")
                     
                     progress_bar.progress(100)
-                    status_text.text("✅ Documentation generation complete!")
+                    
+                    # End timer
+                    end_time = time.time()
+                    elapsed_time = end_time - start_time
+                    
+                    # Store generation time in session state
+                    st.session_state['generation_time'] = elapsed_time
+                    
+                    status_text.text(f"✅ Documentation generation complete! Total time: {timedelta(seconds=int(elapsed_time))}")
                     
                     # Display token usage statistics
                     token_counter = get_token_counter()
@@ -387,25 +406,34 @@ else:
                     st.session_state['model_key'] = model_key
                     
                     add_log("\n" + "=" * 50)
-                    add_log("Token Usage Summary")
+                    add_log("Generation Statistics")
                     add_log("=" * 50)
-                    add_log(f"Total LLM Calls: {summary['total_calls']}")
-                    add_log(f"Input Tokens:    {summary['total_input_tokens']:,}")
-                    add_log(f"Output Tokens:   {summary['total_output_tokens']:,}")
-                    add_log(f"Total Tokens:    {summary['total_tokens']:,}")
+                    add_log(f"⏱️ Completion Time: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time))}")
+                    add_log(f"⏱️ Total Duration:  {timedelta(seconds=int(elapsed_time))} ({elapsed_time:.2f}s)")
+                    add_log(f"🤖 LLM Calls:       {summary['total_calls']}")
+                    add_log(f"📊 Input Tokens:    {summary['total_input_tokens']:,}")
+                    add_log(f"📊 Output Tokens:   {summary['total_output_tokens']:,}")
+                    add_log(f"📊 Total Tokens:    {summary['total_tokens']:,}")
                     
                     if summary['estimated_cost_usd'] > 0:
-                        add_log(f"\nEstimated Cost:  ${summary['estimated_cost_usd']:.4f} USD")
+                        add_log(f"💰 Estimated Cost:  ${summary['estimated_cost_usd']:.4f} USD")
                     else:
-                        add_log("\nCost: $0.00 (Local model)")
+                        add_log("💰 Cost:            $0.00 (Local model)")
                     add_log("=" * 50)
                     
-                st.success("🎉 Documentation generated successfully!")
+                st.success(f"🎉 Documentation generated successfully! Total time: {timedelta(seconds=int(elapsed_time))}")
                 
             except Exception as e:
+                # Calculate elapsed time even on error
+                if 'start_time' in locals():
+                    error_time = time.time() - start_time
+                    error_msg = f"❌ Generation failed: {str(e)} (Duration: {timedelta(seconds=int(error_time))})"
+                else:
+                    error_msg = f"❌ Generation failed: {str(e)}"
+                
                 progress_bar.empty()
                 status_text.empty()
-                st.markdown(f'<div class="error-box">❌ Generation failed: {str(e)}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="error-box">{error_msg}</div>', unsafe_allow_html=True)
                 
                 with st.expander("🔍 Error Details"):
                     st.code(traceback.format_exc())
@@ -417,8 +445,13 @@ else:
             
             # Display token statistics if available
             if 'token_summary' in st.session_state:
-                st.markdown("### 📊 Token Usage Statistics")
+                st.markdown("### 📊 Generation Statistics")
                 summary = st.session_state['token_summary']
+                
+                # Display generation time prominently
+                if 'generation_time' in st.session_state:
+                    elapsed = st.session_state['generation_time']
+                    st.info(f"⏱️ **Total Duration**: {timedelta(seconds=int(elapsed))} ({elapsed:.2f}s)")
                 
                 col1, col2, col3, col4 = st.columns(4)
                 with col1:
