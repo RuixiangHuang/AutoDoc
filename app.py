@@ -70,11 +70,84 @@ st.markdown("""
 
 # Title
 st.markdown('<div class="main-header">📚 AutoDoc</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-header">AI-Powered Code Documentation Generator</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-header">LLM-Powered Code Documentation Generator</div>', unsafe_allow_html=True)
 
 # Sidebar configuration
 with st.sidebar:
     st.header("⚙️ Configuration")
+    
+    st.markdown("---")
+    st.subheader("🤖 LLM Settings")
+    
+    # Load current config
+    config = get_config()
+    
+    # LLM Provider selection
+    llm_provider = st.selectbox(
+        "LLM Provider",
+        options=["Groq", "Ollama"],
+        index=0 if config.get_provider() == "groq" else 1,
+        help="Choose between Groq (cloud) or Ollama (local)"
+    )
+    
+    if llm_provider == "Groq":
+        # Groq configuration
+        groq_api_key = st.text_input(
+            "Groq API Key",
+            value=config.groq_api_key if config.groq_api_key else "",
+            type="password",
+            help="Enter your Groq API key from console.groq.com"
+        )
+        
+        # Available Groq models
+        groq_models = [
+            "openai/gpt-oss-120b",
+            "qwen/qwen3-32b",
+            "meta-llama/llama-4-maverick-17b-128e-instruct"
+        ]
+        
+        current_model_index = 0
+        if config.groq_model in groq_models:
+            current_model_index = groq_models.index(config.groq_model)
+        
+        groq_model = st.selectbox(
+            "Groq Model",
+            options=groq_models,
+            index=current_model_index,
+            help="Select the Groq model to use"
+        )
+        
+        # Update config if changed
+        if groq_api_key and (groq_api_key != config.groq_api_key or groq_model != config.groq_model):
+            config.set_groq_config(groq_api_key, groq_model)
+            st.session_state['llm_config_updated'] = True
+        
+        # Show API key status
+        if groq_api_key:
+            st.success("✅ API Key configured")
+        else:
+            st.warning("⚠️ Please enter your Groq API Key")
+    
+    else:
+        # Ollama configuration
+        ollama_model = st.text_input(
+            "Ollama Model",
+            value=config.ollama_model,
+            help="Enter the Ollama model name (e.g., llama3.2, mistral)"
+        )
+        
+        ollama_base_url = st.text_input(
+            "Ollama Base URL",
+            value=config.ollama_base_url,
+            help="Ollama server URL (default: http://localhost:11434)"
+        )
+        
+        # Update config if changed
+        if ollama_model != config.ollama_model or ollama_base_url != config.ollama_base_url:
+            config.set_ollama_config(ollama_model, ollama_base_url)
+            st.session_state['llm_config_updated'] = True
+        
+        st.info("💡 Make sure Ollama is running locally")
     
     st.markdown("---")
     st.subheader("📁 Directory Settings")
@@ -357,18 +430,16 @@ else:
                 with col4:
                     st.metric("LLM Calls", f"{summary['total_calls']}")
                 
-                # Cost display
-                if summary['estimated_cost_usd'] > 0:
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric("Estimated Cost", f"${summary['estimated_cost_usd']:.4f}")
-                    with col2:
-                        st.metric("Avg Tokens/Call", f"{summary['total_tokens'] / max(summary['total_calls'], 1):.0f}")
-                    with col3:
-                        model_key = st.session_state.get('model_key', 'unknown')
-                        st.metric("Model", model_key.replace('groq_', '').replace('ollama', 'Local'))
-                else:
-                    st.info("💡 Using local model (Ollama) - No API costs!")
+                # Cost and model display
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Estimated Cost", f"${summary['estimated_cost_usd']:.4f}")
+                with col2:
+                    st.metric("Avg Tokens/Call", f"{summary['total_tokens'] / max(summary['total_calls'], 1):.0f}")
+                with col3:
+                    model_key = st.session_state.get('model_key', 'unknown')
+                    model_display = model_key.replace('groq_', '').replace('ollama', 'Local')
+                    st.metric("Model", model_display)
                 
                 st.markdown("---")
             

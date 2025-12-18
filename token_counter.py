@@ -13,9 +13,16 @@ class TokenCounter:
         self.reset()
         # Approximate cost per 1M tokens (USD)
         self.costs = {
+            # Custom Groq models
+            "groq_openai/gpt-oss-120b": {"input": 0.59, "output": 0.79},
+            "groq_qwen/qwen3-32b": {"input": 0.30, "output": 0.30},
+            "groq_meta-llama/llama-4-maverick-17b-128e-instruct": {"input": 0.20, "output": 0.20},
+            # Legacy models (kept for backward compatibility)
             "groq_llama-3.3-70b-versatile": {"input": 0.59, "output": 0.79},
             "groq_llama-3.1-70b-versatile": {"input": 0.59, "output": 0.79},
+            "groq_llama-3.1-8b-instant": {"input": 0.05, "output": 0.08},
             "groq_mixtral-8x7b-32768": {"input": 0.24, "output": 0.24},
+            "groq_gemma2-9b-it": {"input": 0.20, "output": 0.20},
             "groq_gemma-7b-it": {"input": 0.07, "output": 0.07},
             "ollama": {"input": 0.0, "output": 0.0},  # Local, free
         }
