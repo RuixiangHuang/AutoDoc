@@ -70,7 +70,8 @@ Please provide a clear answer with relevant code locations."""
             return response.choices[0].message.content
         else:
             messages = [{"role": "user", "content": prompt}]
-            response = ollama.chat(model=config.ollama_model, messages=messages)
+            client = ollama.Client(host=config.ollama_base_url)
+            response = client.chat(model=config.ollama_model, messages=messages)
             return response['message']['content']
     except Exception as e:
         return f"LLM call failed: {str(e)}"

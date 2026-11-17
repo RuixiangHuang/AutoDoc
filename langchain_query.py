@@ -5,6 +5,7 @@ from typing import Dict, List, Optional
 from config import get_config, LLMConfig
 from alive_progress import alive_bar
 from token_counter import get_token_counter
+from elements import element_id as make_element_id, is_same_element
 
 try:
     from langchain_groq import ChatGroq
@@ -50,7 +51,7 @@ class LangChainQuery:
                 temperature=0.1
             )
         else:
-            self.llm = Ollama(model=self.config.ollama_model)
+            self.llm = Ollama(model=self.config.ollama_model, base_url=self.config.ollama_base_url)
         
         self.prompt = PromptTemplate(
             template=PROMPT_TEMPLATE,
@@ -63,7 +64,8 @@ class LangChainQuery:
         element_name: str,
         element_type: str,
         file_name: str,
-        top_k: int = 3
+        top_k: int = 3,
+        class_name: str = ""
     ) -> str:
         """
         Generate explanation for a single code element (function/class)
@@ -74,6 +76,7 @@ class LangChainQuery:
             element_type: Type ("function" or "class")
             file_name: File name
             top_k: Number of related code snippets to retrieve from vector database
+            class_name: Enclosing class for methods ("" otherwise)
         
         Returns:
             LLM-generated explanation text
@@ -90,11 +93,12 @@ class LangChainQuery:
                 filter_dict=None
             )
             
-            # Filter out current element itself (by comparing code text)
+            # Filter out current element itself. Compare metadata, not text:
+            # the stored text has a "def name" header and docstring prepended,
+            # so it never equals the raw snippet.
             context_snippets = []
             for result in similar_results:
-                # If code text is not exactly the same, use as context
-                if result["text"].strip() != code_text.strip():
+                if not is_same_element(result["metadata"], file_name, element_type, element_name, class_name):
                     context_snippets.append(result["text"])
                     if len(context_snippets) >= top_k:
                         break
@@ -161,14 +165,16 @@ class LangChainQuery:
         
         with alive_bar(total) as bar:
             for element in code_elements:
-                element_id = f"{element['file']}::{element['type']}::{element['name']}"
+                class_name = element.get("class_name") or ""
+                element_id = make_element_id(element["file"], element["type"], element["name"], class_name)
                 
                 explanation = self.explain_code_element(
                     code_text=element["code"],
                     element_name=element["name"],
                     element_type=element["type"],
                     file_name=element["file"],
-                    top_k=3
+                    top_k=3,
+                    class_name=class_name
                 )
                 
                 explanations[element_id] = explanation

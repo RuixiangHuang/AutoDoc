@@ -21,8 +21,7 @@ class CodeAnalyzer(ast.NodeVisitor):
 
     # ----- Classes -----
     def visit_ClassDef(self, node):
-        start = node.lineno
-        end = max([n.lineno for n in ast.walk(node) if hasattr(n, "lineno")], default=start)
+        start, end = self._node_span(node)
         code_snippet = self._extract_code_snippet(start, end)
         
         max_lines = 1000
@@ -39,6 +38,12 @@ class CodeAnalyzer(ast.NodeVisitor):
 
     # ----- Functions -----
     def visit_FunctionDef(self, node):
+        self._visit_function(node)
+
+    def visit_AsyncFunctionDef(self, node):
+        self._visit_function(node)
+
+    def _visit_function(self, node):
         skip_functions = {
             "__init__", "__str__", "__repr__", "__eq__", "__ne__", "__hash__",
             "__lt__", "__le__", "__gt__", "__ge__", "__del__", "__new__",
@@ -49,8 +54,7 @@ class CodeAnalyzer(ast.NodeVisitor):
         }
         
         if node.name not in skip_functions:
-            start = node.lineno
-            end = max([n.lineno for n in ast.walk(node) if hasattr(n, "lineno")], default=start)
+            start, end = self._node_span(node)
             code_snippet = self._extract_code_snippet(start, end)
             
             max_lines = 500
@@ -142,6 +146,34 @@ class CodeAnalyzer(ast.NodeVisitor):
                 ))
         self.generic_visit(node)
     
+    def visit_AnnAssign(self, node):
+        # Annotated assignment: `x: int = 0` or `self.x: int = 0`
+        target = node.target
+        if isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name) and target.value.id == "self":
+            name = target.attr
+        elif isinstance(target, ast.Name):
+            name = target.id
+        else:
+            name = None
+        if name:
+            self.variables.append((
+                name,
+                self.file_name,
+                self.current_class if self.current_class else "",
+                self.current_function if self.current_function else "",
+                node.lineno
+            ))
+        self.generic_visit(node)
+
+    @staticmethod
+    def _node_span(node):
+        """(start, end) lines of a def/class, including decorators and closing lines."""
+        start = min([d.lineno for d in node.decorator_list] + [node.lineno])
+        end = getattr(node, "end_lineno", None) or max(
+            (n.lineno for n in ast.walk(node) if hasattr(n, "lineno")), default=node.lineno
+        )
+        return start, end
+
     def _extract_code_snippet(self, start_line: int, end_line: int) -> str:
         if not self.source_lines:
             return ""
@@ -149,7 +181,12 @@ class CodeAnalyzer(ast.NodeVisitor):
         end_idx = min(len(self.source_lines), end_line)
         return '\n'.join(self.source_lines[start_idx:end_idx])
 
-def extract_code_elements(file_path):
+def extract_code_elements(file_path, display_name=None):
+    """
+    Parse a Python file. `display_name` is how the file is identified in the
+    results (defaults to its basename); scan_directory passes the path
+    relative to the scan root so same-named files in different folders stay distinct.
+    """
     encodings = ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252', 'gbk', 'gb2312']
     source = None
     
@@ -170,7 +207,7 @@ def extract_code_elements(file_path):
     
     try:
         tree = ast.parse(source)
-        analyzer = CodeAnalyzer(os.path.basename(file_path), file_path=file_path, source_code=source)
+        analyzer = CodeAnalyzer(display_name or os.path.basename(file_path), file_path=file_path, source_code=source)
         analyzer.visit(tree)
         return analyzer.classes, analyzer.functions, analyzer.variables
     except SyntaxError as e:
@@ -188,9 +225,12 @@ def scan_directory(directory, file_filter=None):
         for file in files:
             if file.endswith(".py"):
                 path = os.path.join(root, file)
-                if file_filter and not file_filter(path, file):
+                # Filter on the path relative to the scan root, so keywords that
+                # happen to appear in the root itself (e.g. ~/my_api_project) don't match everything
+                rel_path = os.path.relpath(path, directory)
+                if file_filter and not file_filter(rel_path, file):
                     continue
-                cls, funcs, vars_ = extract_code_elements(path)
+                cls, funcs, vars_ = extract_code_elements(path, display_name=rel_path)
                 all_classes.extend(cls)
                 all_functions.extend(funcs)
                 all_variables.extend(vars_)
