@@ -1,7 +1,7 @@
 import os
 from datetime import datetime
 from typing import Dict, List, Optional
-from markdown import markdown
+from elements import element_id
 
 if os.path.exists("/opt/homebrew/lib"):
     os.environ.setdefault("DYLD_LIBRARY_PATH", "/opt/homebrew/lib")
@@ -106,8 +106,7 @@ class DocumentGenerator:
                         code_snippet = cls.get("code", "")
                         docstring = cls.get("docstring")
                     
-                    element_id = f"{file}::class::{name}"
-                    explanation = explanations.get(element_id, self.texts["no_explanation"])
+                    explanation = explanations.get(element_id(file, "class", name), self.texts["no_explanation"])
                     
                     lines.append(f"#### `{name}`\n")
                     lines.append(f"- **{self.texts['location']}**: {self.texts['line']} {start}-{end}\n")
@@ -143,8 +142,7 @@ class DocumentGenerator:
                         docstring = func.get("docstring")
                         decorators = func.get("decorators", [])
                     
-                    element_id = f"{file}::function::{name}"
-                    explanation = explanations.get(element_id, self.texts["no_explanation"])
+                    explanation = explanations.get(element_id(file, "function", name, class_name), self.texts["no_explanation"])
                     
                     func_title = f"`{name}`"
                     if class_name:
@@ -199,6 +197,8 @@ class DocumentGenerator:
             print(error_msg)
             raise ImportError("WeasyPrint is not available")
         
+        from markdown import markdown
+
         try:
             html_content = markdown(
                 markdown_text,

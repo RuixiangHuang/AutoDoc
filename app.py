@@ -154,17 +154,20 @@ with st.sidebar:
     st.markdown("---")
     st.subheader("📁 Directory Settings")
     
-    # Code directory input
+    # Code directory input (bound to session state so the example button can set it)
     code_dir = st.text_input(
         "Python Project Directory Path",
         placeholder="e.g., /path/to/your/project",
-        help="Enter the full path to the Python project you want to analyze"
+        help="Enter the full path to the Python project you want to analyze",
+        key="code_dir"
     )
     
-    # Quick select example directory
-    if st.button("📂 Use Example Directory (code/)"):
-        code_dir = os.path.join(os.getcwd(), "code")
-        st.rerun()
+    # Quick select example directory. A callback runs before the next rerun,
+    # so it can update the text input's value (assigning code_dir directly would be lost).
+    def _use_example_dir():
+        st.session_state["code_dir"] = os.path.join(os.path.dirname(os.path.abspath(__file__)), "code")
+    
+    st.button("📂 Use Example Directory (code/)", on_click=_use_example_dir)
     
     # Output directory
     output_dir = st.text_input(
@@ -343,7 +346,7 @@ else:
                         generate_documentation(
                             code_directory=code_dir,
                             output_dir=output_dir,
-                            file_filter_keywords=filter_str if filter_str else "."  # Use . to match all files
+                            file_filter_keywords=filter_str  # Empty string disables filtering
                         )
                     
                     output = f.getvalue()

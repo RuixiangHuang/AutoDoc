@@ -122,6 +122,8 @@ AutoDoc/
 ├── vector_store.py             # ChromaDB vector storage
 ├── langchain_query.py          # LLM query and explanation
 ├── document_generator.py       # Markdown/PDF generation
+├── elements.py                 # Shared code-element IDs
+├── tests/                      # Regression tests (stdlib unittest)
 ├── config.py                   # Configuration management
 ├── requirements.txt            # Python dependencies
 ├── run_app.sh                  # Web interface launcher
@@ -231,6 +233,11 @@ ollama pull llama3.2
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+Run the tests (no LLM or extra packages needed):
+```bash
+python -m unittest discover -s tests
+```
 
 ## 📄 License
 

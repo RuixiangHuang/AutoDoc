@@ -97,7 +97,7 @@ def identify_interface_files(file_structure: dict) -> list:
             temperature=0.1
         )
     else:
-        llm = Ollama(model=config.ollama_model)
+        llm = Ollama(model=config.ollama_model, base_url=config.ollama_base_url)
     
     structure_text = "Directory structure:\n"
     structure_text += f"Directories: {', '.join(file_structure['directories'][:20])}\n"
